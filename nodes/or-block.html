@@ -1,5 +1,5 @@
-<!-- UI Template Section: Defines the edit dialog for the AND Block node -->
-<script type="text/html" data-template-name="and-block">
+<!-- UI Template Section: Defines the edit dialog for the OR Block node -->
+<script type="text/html" data-template-name="or-block">
     <div class="form-row">
         <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
@@ -12,11 +12,11 @@
 
 <!-- JavaScript Section: Registers the node and handles editor logic -->
 <script type="text/javascript">
-    RED.nodes.registerType("and-block", {
+    RED.nodes.registerType("or-block", {
         category: "control",
         color: "#301934",
         defaults: {
-            name: { value: "and" },
+            name: { value: "or" },
             slots: { value: 2, required: true, validate: function (v) { return Number.isInteger(+v) && +v >= 2; } }
         },
         inputs: 1,
@@ -24,13 +24,13 @@
         inputLabels: ["input"],
         outputLabels: ["output"],
         icon: "font-awesome/fa-wrench",
-        paletteLabel: "and",
+        paletteLabel: "or",
         label: function () {
-            return this.name ? `${this.name} (${this.slots})` : `and (${this.slots})`;
+            return this.name ? `${this.name} (${this.slots})` : `or (${this.slots})`;
         },
         oneditprepare: function () {
             $("#node-input-slots").val(this.slots || 2);
-            $("#node-input-name").val(this.name || "and");
+            $("#node-input-name").val(this.name || "or");
         },
         oneditsave: function () {
             // Standard config properties are automatically saved by Node-RED
@@ -38,20 +38,20 @@
     });
 </script>
 
-<!-- Help Section: Provides documentation for the AND Block node -->
-<script type="text/markdown" data-help-name="and-block">
-Evaluates a configurable number of boolean inputs asynchronously, outputting true if all are true.
+<!-- Help Section: Provides documentation for the OR Block node -->
+<script type="text/markdown" data-help-name="or-block">
+Evaluates a configurable number of boolean inputs asynchronously, outputting true if any are true.
 
 ### Inputs
 - **context** (string): Sets input values ("inX" for input X, e.g., "in1").
 - **payload** (any): Input value (boolean-convertible for "inX").
 
 ### Outputs
-- **payload** (boolean): True if all inputs are true, false otherwise.
+- **payload** (boolean): True if any input is true, false otherwise.
 
 ### Details
-The AND Block is a Sedona-inspired node for control systems, processing inputs (`in1`, `in2`, ..., `inN`). 
-It computes a logical AND, outputting `true` only when all inputs are `true`.
+The OR Block is a Sedona-inspired node for control systems, processing inputs (`in1`, `in2`, ..., `inN`). 
+It computes a logical OR, outputting `true` if any input is `true`.
 
 Inputs update asynchronously via `msg.context = "inX"` (e.g., `msg.context = "in1", msg.payload = true`). 
 The number of inputs (slots, default: 2) and node name are configurable only in the editor. Changes require redeployment to take effect.
@@ -59,12 +59,12 @@ The number of inputs (slots, default: 2) and node name are configurable only in 
 `msg.payload` for inputs is converted to boolean (e.g., `1`, `"true"` → `true`; `0`, `null` → `false`). 
 Outputs are new messages (`{ payload: boolean }`), sent only when an input value changes, discarding input properties like `msg.context`.
 
-Use with a Contextual In node to set `msg.context`. Ideal for interlocking logic or asynchronous conditions in automation workflows.
+Use with a Contextual In node to set `msg.context`. Ideal for condition aggregation or asynchronous triggers in automation workflows.
 
 ### Error Handling
 - Missing `msg.payload`: Shows "missing payload" (red), no output.
 - Invalid `inX` (e.g., `in3` for 2 slots): Shows "invalid input index" (red), no output.
 - Unknown `msg.context`: Shows "unknown context" (yellow), no output.
 
-Status shows blue dot for output when value changes (e.g., `out: true, in: [true, true]`), blue ring for unchanged inputs (same format), red/yellow for errors.
+Status shows blue dot for output when value changes (e.g., `out: true, in: [true, false]`), blue ring for unchanged inputs (same format), red/yellow for errors.
 </script>

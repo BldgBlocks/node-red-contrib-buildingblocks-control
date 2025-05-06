@@ -1,0 +1,68 @@
+<!-- UI Template Section: Defines the edit dialog for the Frequency Block node -->
+<script type="text/html" data-template-name="frequency-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("frequency-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "frequency" }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["stats"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "frequency",
+        label: function () {
+            return this.name || "frequency";
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/frequency-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "frequency");
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "frequency");
+            });
+        },
+        oneditsave: function () {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Frequency Block node -->
+<script type="text/markdown" data-help-name="frequency-block">
+Measures pulse frequency from boolean rising edges.
+
+### Inputs
+- **context** (string): Sets configuration ("reset" to clear state).
+- **payload** (boolean): Input boolean to detect rising edges.
+
+### Outputs
+- **payload** (object): Pulse rates `{ ppm, pph, ppd }` (pulses per minute, hour, day).
+
+### Details
+The Frequency Block is a Sedona-inspired node for control systems, measuring pulse frequency from rising edges in `msg.payload` (boolean, e.g., `true` for pulse).
+
+It outputs an object with pulse rates: `ppm` (pulses per minute), `pph` (per hour), and `ppd` (per day).
+
+The node name is configurable in the editor. Reset state via `msg.context = "reset"`. Editor changes require redeployment to take effect; reset messages apply immediately.
+
+Outputs are new messages (`{ payload: { ppm, pph, ppd } }`), sent only when pulse rates change.
+
+Use in automation workflows to monitor pulse frequencies, such as from sensors or switches.
+
+### Error Handling
+- Missing `msg.payload`: Shows "missing input" (red), no output.
+- Invalid input (non-boolean): Shows "invalid input" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+
+Status shows green for reset (e.g., `state reset`), blue dot for output when rates change (e.g., `ppm: 1.00, pph: 60.00, ppd: 1440.00`), blue ring for unchanged inputs (same format), red/yellow for errors.
+</script>

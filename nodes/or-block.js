@@ -1,11 +1,11 @@
 module.exports = function(RED) {
-    function AndBlockNode(config) {
+    function OrBlockNode(config) {
         RED.nodes.createNode(this, config);
         
         const node = this;
         
         // Initialize properties from config
-        node.name = config.name || "and";
+        node.name = config.name || "or";
         node.slots = parseInt(config.slots) || 2;
         if (typeof node.slots !== "number" || node.slots < 2) {
             node.slots = 2;
@@ -31,7 +31,7 @@ module.exports = function(RED) {
                         let store = inputs[index - 1];
                         if (store != value) {
                             inputs[index - 1] = value;
-                            const result = inputs.every(v => v === true);
+                            const result = inputs.some(v => v === true);
                             send({ payload: result });
 
                             node.status({
@@ -40,11 +40,10 @@ module.exports = function(RED) {
                                 text: `out: ${result}, in: [${inputs.join(", ")}]`
                             });
                         } else {
-                            // Show current state for unchanged inputs to prevent stale status
                             node.status({
                                 fill: "blue",
                                 shape: "ring",
-                                text: `out: ${inputs.every(v => v === true)}, in: [${inputs.join(", ")}]`
+                                text: `out: ${inputs.some(v => v === true)}, in: [${inputs.join(", ")}]`
                             });
                         }
                         if (done) done();
@@ -69,5 +68,5 @@ module.exports = function(RED) {
         });
     }
 
-    RED.nodes.registerType("and-block", AndBlockNode);
+    RED.nodes.registerType("or-block", OrBlockNode);
 };

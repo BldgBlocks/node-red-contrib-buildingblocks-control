@@ -1,0 +1,74 @@
+<!-- UI Template Section: Defines the edit dialog for the Max Block node -->
+<script type="text/html" data-template-name="max-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-max" title="Default maximum value for capping (number)"><i class="fa fa-arrow-up"></i> Max</label>
+        <input type="number" id="node-input-max" placeholder="50" step="any">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("max-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "max" },
+            max: { value: 50, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "max",
+        label: function () {
+            return this.name || "max";
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/max-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "max");
+                $("#node-input-max").val(data.max || 50);
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "max");
+                $("#node-input-max").val(this.max || 50);
+            });
+        },
+        oneditsave: function () {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Max Block node -->
+<script type="text/markdown" data-help-name="max-block">
+Caps a number input at a configurable maximum value.
+
+### Inputs
+- **context** (string): Sets configuration ("max" or "setpoint" to update maximum).
+- **payload** (number): Input number to cap, or maximum value for config.
+
+### Outputs
+- **payload** (number): Input capped at the maximum value.
+
+### Details
+The Max Block is a Sedona-inspired node for control systems, capping `msg.payload` (a number) to a maximum value (default: 50).
+
+The node name and default maximum are configurable in the editor. The maximum can be updated via `msg.context = "max"` or `"setpoint"` with `msg.payload` as a number. Editor changes require redeployment to take effect and reset the maximum to the editor value; message updates apply immediately and are reflected in the editor.
+
+Outputs are new messages (`{ payload: number }`), sent only when the capped value changes.
+
+Use in automation workflows to limit numerical inputs, such as sensor readings or control signals.
+
+### Error Handling
+- Missing `msg.payload`: Shows "missing payload" (red), no output.
+- Invalid input (non-number, NaN): Shows "invalid input" (red), no output.
+- Invalid maximum (non-number, NaN): Shows "invalid max" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+
+Status shows green for max updates (e.g., `max: 60.00`), blue dot for output when value changes (e.g., `in: 65.00, out: 60.00`), blue ring for unchanged inputs (same format), red/yellow for errors.
+</script>

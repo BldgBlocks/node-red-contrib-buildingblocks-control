@@ -1,0 +1,81 @@
+<!-- UI Template Section: Defines the edit dialog for the TimeSequence Block node -->
+<script type="text/html" data-template-name="time-sequence-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-delay" title="Delay between sequence stages (milliseconds, non-negative number)"><i class="fa fa-clock-o"></i> Delay (ms)</label>
+        <input type="number" id="node-input-delay" placeholder="5000" min="0" step="any">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("time-sequence-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "time sequence" },
+            delay: { value: 5000, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } }
+        },
+        inputs: 1,
+        outputs: 4,
+        inputLabels: ["input"],
+        outputLabels: ["stage1", "stage2", "stage3", "reset"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "time sequence",
+        label: function() {
+            return this.name || "time sequence";
+        },
+        oneditprepare: function() {
+            const id = this.id;
+            $.getJSON(`/time-sequence-block/${id}?t=${Date.now()}`, function(data) {
+                $("#node-input-name").val(data.name || "time-sequence");
+                $("#node-input-delay").val(data.delay !== undefined ? data.delay : 5000);
+            }).fail(function() {
+                $("#node-input-name").val(this.name || "time-sequence");
+                $("#node-input-delay").val(this.delay !== undefined ? this.delay : 5000);
+            });
+        },
+        oneditsave: function() {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the TimeSequence Block node -->
+<script type="text/markdown" data-help-name="time-sequence-block">
+Triggers a sequence of outputs with configurable delays, ignoring inputs during active sequence.
+
+### Inputs
+- **context** (string): Sets configuration ("delay" for delay time, "reset" to clear sequence).
+- **payload** (any): Input value to pass through outputs, boolean (true) for reset.
+
+### Outputs
+1. **stage1** (any): Input message, output immediately with `msg.stage = 1`.
+2. **stage2** (any): Input message, output after delay with `msg.stage = 2`.
+3. **stage3** (any): Input message, output after 2x delay with `msg.stage = 3`.
+4. **reset** (any | boolean): Input message, output after 3x delay with `msg.stage = 4`; `false` on reset.
+
+### Details
+The TimeSequence Block is a Sedona-inspired node for control systems, triggering a sequence of four outputs (stage 1, stage 2, stage 3, reset) with the input `msg` passed through, including `msg.stage` (1 to 4) to indicate the sequence stage. 
+Each output is delayed by a configurable interval (default: 5000ms), set via the editor or `msg.context = "delay"` with `msg.payload` as a non-negative number (e.g., `5000` for 5s). 
+Reset the sequence via `msg.context = "reset"` with `msg.payload = true`, which outputs `{ payload: false }` to all ports and enables new sequences.
+
+The node name and `delay` are configurable in the editor; `delay` is also configurable via `msg.context`. 
+Editor changes require redeployment; message-based changes apply immediately, resetting to editor values on redeployment. 
+Inputs during an active sequence are ignored. 
+The input message is output sequentially on four ports, preserving properties (e.g., `msg.topic`).
+
+Use in automation workflows for timed control sequences, such as staged device activation.
+
+### Error Handling
+- Missing `msg.payload`: Shows "missing payload" (red), no output.
+- Invalid delay (non-numeric, negative): Shows "invalid delay" (red), no output.
+- Invalid reset (non-boolean, not true): Shows "invalid reset" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (red), no output.
+- Input during active sequence: Shows "sequence running" (yellow), no output.
+
+Status shows green for configuration (e.g., `delay: 5000 ms`, `state reset`), blue dot for output (e.g., `out: stage 1, in: "start"`), red for sequence running or errors, yellow for warnings.
+</script>

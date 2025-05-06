@@ -1,0 +1,67 @@
+<!-- UI Template Section: Defines the edit dialog for the Accumulate Block node -->
+<script type="text/html" data-template-name="accumulate-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("accumulate-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "accumulate" }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["count"],
+        icon: "font-awesome/fa-sort-numeric-asc",
+        paletteLabel: "accumulate",
+        label: function () {
+            return this.name || "accumulate";
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/accumulate-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "accumulate");
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "accumulate");
+            });
+        },
+        oneditsave: function () {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Accumulate Block node -->
+<script type="text/markdown" data-help-name="accumulate-block">
+Accumulates consecutive true inputs.
+
+### Inputs
+- **context** (string): Sets configuration ("reset" to clear count).
+- **payload** (boolean): Input boolean; increments count if true, resets if false.
+
+### Outputs
+- **payload** (number): Current count of consecutive true inputs.
+
+### Details
+The Accumulate Block is a Sedona-inspired node for control systems, counting consecutive `true` inputs in `msg.payload` (boolean). It increments the count for each `true` input, resets to 0 on `false`, and outputs the count as `msg.payload`.
+
+The node name is configurable in the editor. Reset the count via `msg.context = "reset"` with `msg.payload = true` or by sending `msg.payload = false`. Editor changes require redeployment; reset messages apply immediately.
+
+Outputs are new messages (`{ payload: number }`) with the current count, sent only when the count changes.
+
+Use in automation to track consecutive events, such as sustained sensor triggers.
+
+### Error Handling
+- Missing `msg.payload` for config: Shows "missing payload" (red), no output.
+- Invalid input (non-boolean): Shows "invalid input" (red), no output.
+- Invalid reset value (non-boolean): Shows "invalid reset" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (red), no output.
+
+Status shows green for reset (e.g., `state reset`), blue dot for output when count changes (e.g., `out: 5`), blue ring for unchanged inputs (same format), red for errors.
+</script>

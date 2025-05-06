@@ -1,0 +1,127 @@
+<!-- UI Template Section: Defines the edit dialog for the Changeover Block node -->
+<script type="text/html" data-template-name="changeover-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-setpoint" title="Target temperature setpoint (°C, number)"><i class="fa fa-crosshairs"></i> Setpoint</label>
+        <input type="number" id="node-input-setpoint" placeholder="22" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-anticipator" title="Hysteresis adjustment (°C, non-negative number)"><i class="fa fa-arrows-v"></i> Anticipator</label>
+        <input type="number" id="node-input-anticipator" placeholder="0.5" min="0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-deadband" title="Temperature range for no action (°C, positive number)"><i class="fa fa-arrows-v"></i> Deadband</label>
+        <input type="number" id="node-input-deadband" placeholder="2" min="0.01" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-swapTime" title="Minimum time between mode changes (seconds, non-negative number)"><i class="fa fa-clock-o"></i> Swap Time</label>
+        <input type="number" id="node-input-swapTime" placeholder="300" min="0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-minTempSetpoint" title="Minimum allowable setpoint (°C, number)"><i class="fa fa-arrow-down"></i> Min Setpoint</label>
+        <input type="number" id="node-input-minTempSetpoint" placeholder="10" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-maxTempSetpoint" title="Maximum allowable setpoint (°C, number)"><i class="fa fa-arrow-up"></i> Max Setpoint</label>
+        <input type="number" id="node-input-maxTempSetpoint" placeholder="30" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-minCycleTime" title="Minimum active cycle time (seconds, non-negative number)"><i class="fa fa-clock-o"></i> Min Cycle Time</label>
+        <input type="number" id="node-input-minCycleTime" placeholder="60" min="0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-enable" title="Enable thermostat (true) or disable (false)"><i class="fa fa-power-off"></i> Enable</label>
+        <input type="checkbox" id="node-input-enable" style="width: auto; vertical-align: middle;">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("changeover-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "changeover" },
+            setpoint: { value: 22, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            anticipator: { value: 0.5, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
+            deadband: { value: 2, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) > 0; } },
+            swapTime: { value: 300, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
+            minTempSetpoint: { value: 10, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            maxTempSetpoint: { value: 30, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            minCycleTime: { value: 60, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
+            enable: { value: true }
+        },
+        inputs: 1,
+        outputs: 2,
+        inputLabels: ["input"],
+        outputLabels: ["mode", "diagnostics"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "changeover",
+        label: function() {
+            return this.name || "changeover";
+        },
+        oneditprepare: function() {
+            const id = this.id;
+            $.getJSON(`/changeover-block/${id}?t=${Date.now()}`, function(data) {
+                $("#node-input-name").val(data.name || "changeover");
+                $("#node-input-setpoint").val(data.setpoint !== undefined ? data.setpoint : 22);
+                $("#node-input-anticipator").val(data.anticipator !== undefined ? data.anticipator : 0.5);
+                $("#node-input-deadband").val(data.deadband !== undefined ? data.deadband : 2);
+                $("#node-input-swapTime").val(data.swapTime !== undefined ? data.swapTime : 300);
+                $("#node-input-minTempSetpoint").val(data.minTempSetpoint !== undefined ? data.minTempSetpoint : 10);
+                $("#node-input-maxTempSetpoint").val(data.maxTempSetpoint !== undefined ? data.maxTempSetpoint : 30);
+                $("#node-input-minCycleTime").val(data.minCycleTime !== undefined ? data.minCycleTime : 60);
+                $("#node-input-enable").prop("checked", data.enable === true);
+            }).fail(function() {
+                $("#node-input-name").val(this.name || "changeover");
+                $("#node-input-setpoint").val(this.setpoint !== undefined ? this.setpoint : 22);
+                $("#node-input-anticipator").val(this.anticipator !== undefined ? this.anticipator : 0.5);
+                $("#node-input-deadband").val(this.deadband !== undefined ? this.deadband : 2);
+                $("#node-input-swapTime").val(this.swapTime !== undefined ? this.swapTime : 300);
+                $("#node-input-minTempSetpoint").val(this.minTempSetpoint !== undefined ? this.minTempSetpoint : 10);
+                $("#node-input-maxTempSetpoint").val(this.maxTempSetpoint !== undefined ? this.maxTempSetpoint : 30);
+                $("#node-input-minCycleTime").val(this.minCycleTime !== undefined ? this.minCycleTime : 60);
+                $("#node-input-enable").prop("checked", this.enable === true);
+            });
+        },
+        oneditsave: function() {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Changeover Block node -->
+<script type="text/markdown" data-help-name="changeover-block">
+Thermostat controller with automatic heating/cooling changeover and hysteresis.
+
+### Inputs
+- **context** (string): Sets configuration ("setpoint", "anticipator", "deadband", "swapTime", "minTempSetpoint", "maxTempSetpoint", "minCycleTime", "enable").
+- **payload** (number | boolean): Number for temperature or config value (number for most configs, boolean for enable).
+
+### Outputs
+1. **isHeating** (boolean | null): True for heating, false for cooling, null for off/disabled.
+2. **diagnostics** (object): Includes mode ("heating", "cooling", "off"), isHeating, setpoint, temperature, enabled.
+
+### Details
+The Changeover Block is a Sedona-inspired node for control systems, automatically switching between heating, cooling, or off based on temperature, setpoint, and deadband, with hysteresis via anticipator. 
+It enforces `swapTime` (minimum time between mode changes) and `minCycleTime` (minimum active time). 
+The setpoint is constrained within `minTempSetpoint` and `maxTempSetpoint`.
+
+The node name is configurable only in the editor. All other properties (`setpoint`, `anticipator`, `deadband`, `swapTime`, `minTempSetpoint`, `maxTempSetpoint`, `minCycleTime`, `enable`) are configurable via the editor or `msg.context` (e.g., `msg.context = "setpoint", msg.payload = 23`). 
+Editor changes require redeployment; message-based changes apply immediately, resetting to editor values on redeployment.
+
+Outputs are new messages (`{ payload: isHeating }` and `{ payload: { mode, isHeating, setpoint, temperature, enabled } }`), sent only when the mode changes (heating, cooling, off) or on configuration updates that cause a mode change.
+
+Use in automation for HVAC control with automatic mode switching.
+
+### Error Handling
+- Missing `msg.payload`: Shows "missing temperature" or "missing payload" (red), no output.
+- Invalid temperature or config values (non-numeric, invalid range): Shows "invalid setpoint" (red), no output.
+- Invalid enable (non-boolean): Shows "invalid enable" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+
+Status shows green for configuration updates (e.g., `setpoint set to 23.00`, `enable set to true`), blue dot for output when mode changes (e.g., `mode: heating, isHeating: true`), blue ring for unchanged inputs or state (same format), red for disabled state or errors, yellow for unknown context.
+</script>

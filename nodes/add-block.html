@@ -1,0 +1,81 @@
+<!-- UI Template Section: Defines the edit dialog for the Add Block node -->
+<script type="text/html" data-template-name="add-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-slots" title="Number of input slots (positive integer, e.g., 2)"><i class="fa fa-list-ol"></i> Slots</label>
+        <input type="number" id="node-input-slots" placeholder="2" min="1" step="1">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("add-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "add" },
+            slots: {
+                value: 2,
+                required: true,
+                validate: function(v) { return !isNaN(parseInt(v)) && parseInt(v) >= 1; }
+            }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["sum"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "add",
+        label: function () {
+            return this.name || "add";
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/add-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "add");
+                $("#node-input-slots").val(data.slots || 2);
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "add");
+                $("#node-input-slots").val(this.slots || 2);
+            });
+        },
+        oneditsave: function () {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Add Block node -->
+<script type="text/markdown" data-help-name="add-block">
+Sums multiple numeric inputs.
+
+### Inputs
+- **context** (string): Sets configuration ("reset" to clear inputs, "slots" to set number of slots) or identifies input slot (e.g., "in1", "in2").
+- **payload** (number | boolean): Number for input slot or slots configuration, boolean for reset.
+
+### Outputs
+- **payload** (number): Sum of all input slots.
+
+### Details
+The Add Block is a Sedona-inspired node for control systems, summing numeric inputs from multiple slots identified by `msg.context` (e.g., `in1`, `in2`). The number of slots is configurable in the editor or via `msg.context = "slots"` with a positive integer (e.g., 3). Inputs default to 0 and are updated via `msg.context = "inX"` with a numeric `msg.payload`. Reset all inputs to 0 via `msg.context = "reset"` with `msg.payload = true`.
+
+Editor changes require redeployment; message updates apply immediately, with slot changes reflected in the editor.
+
+Outputs are new messages (`{ payload: number }`), sent only when the sum changes.
+
+Use in automation to combine numeric signals, such as sensor values.
+
+### Error Handling
+- Missing `msg.context`: Shows "missing context" (red), no output.
+- Missing `msg.payload`: Shows "missing payload" (red), no output.
+- Invalid input (non-numeric): Shows "invalid input" (red), no output.
+- Invalid reset value (non-boolean): Shows "invalid reset" (red), no output.
+- Invalid slots value (non-integer, <1): Shows "invalid slots" (red), no output.
+- Invalid input slot (e.g., `in5` with 3 slots): Shows "invalid input slot" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (red), no output.
+
+Status shows green for config (e.g., `state reset`, `slots: 3`), blue dot for output when sum changes (e.g., `out: 15.00, in: in2=5.00`), blue ring for unchanged outputs (same format), red for errors.
+</script>

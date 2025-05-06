@@ -1,0 +1,63 @@
+<!-- UI Template Section: Defines the edit dialog for the Negate Block node -->
+<script type="text/html" data-template-name="negate-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("negate-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "negate" }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "negate",
+        label: function () {
+            return this.name || "negate";
+        },
+        oneditprepare: function () {
+            $("#node-input-name").val(this.name || "negate");
+        },
+        oneditsave: function () {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Negate Block node -->
+<script type="text/markdown" data-help-name="negate-block">
+Negates a number or boolean input value.
+
+### Inputs
+- **payload** (number | boolean): Value to negate (number or boolean).
+
+### Outputs
+- **payload** (number | boolean): Negated value (-number or !boolean).
+
+### Details
+The Negate Block is a Sedona-inspired node for control systems, negating `msg.payload`. 
+For numbers, it outputs the negative (e.g., `5` → `-5`). 
+For booleans, it outputs the inverse (e.g., `true` → `false`). 
+Invalid inputs (e.g., strings, arrays, null, NaN) are rejected.
+
+The node name is configurable only in the editor. Changes require redeployment to take effect.
+
+Outputs are new messages (`{ payload: value }`), sent only when the negated value changes.
+
+### Error Handling
+- Missing `msg.payload`: Shows "missing payload" (red), no output.
+- Invalid input (null): Shows "null input" (red), no output.
+- Invalid input (array): Shows "array input" (red), no output.
+- Invalid input (string): Shows "string input" (red), no output.
+- Invalid input (NaN or other types): Shows "invalid input type" (red), no output.
+
+Status shows blue dot for output when value changes (e.g., `in: 5, out: -5`), blue ring for unchanged inputs (same format), red for errors.
+</script>

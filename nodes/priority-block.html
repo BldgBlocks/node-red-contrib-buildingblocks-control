@@ -1,0 +1,70 @@
+<!-- UI Template Section: Defines the edit dialog for the Priority Block node -->
+<script type="text/html" data-template-name="priority-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("priority-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "priority" }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "priority",
+        label: function() {
+            return this.name || "priority";
+        },
+        oneditprepare: function() {
+            const id = this.id;
+            $.getJSON(`/priority-block/${id}?t=${Date.now()}`, function(data) {
+                $("#node-input-name").val(data.name || "priority");
+            }).fail(function() {
+                $("#node-input-name").val(this.name || "priority");
+            });
+        },
+        oneditsave: function() {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Priority Block node -->
+<script type="text/markdown" data-help-name="priority-block">
+Implements a priority array with 16 levels, default, and fallback.
+
+### Inputs
+- **context** (string): Identifies input ("priority1" to "priority16", "default", "fallback").
+- **payload** (number | null): Value for priority/default/fallback, or null to relinquish.
+
+### Outputs
+- **payload** (number | null): Highest non-null priority value.
+- **diagnostics.activePriority** (string): Indicates active priority level ("priority1" to "priority16", "default", "fallback", or null).
+
+### Details
+The Priority Block is a Sedona-inspired node for control systems, managing a priority array with 16 slots (`priority1` to `priority16`), `default`, and `fallback`. 
+It outputs the highest non-null value, prioritizing `priority1` (highest) to `priority16` (lowest), then `default` (normal flow logic), then `fallback` (when default is null).
+
+Inputs are set via `msg.context` (e.g., `msg.context = "priority1", msg.payload = 75.5` or `msg.payload = null` to relinquish). 
+The node name is configurable only in the editor. Editor changes require redeployment; message-based changes apply immediately.
+
+Outputs are new messages (`{ payload: value, diagnostics: { activePriority } }`), sent on every valid `msg.context` update.
+
+Use in automation for prioritized control signals, e.g., user overrides or emergency setpoints.
+
+### Error Handling
+- Missing `msg.context`: Shows "missing context" (red), no output.
+- Missing `msg.payload`: Shows "missing payload" (red), no output.
+- Invalid priority/default/fallback (non-numeric, not null): Shows "invalid priority1" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+
+Status shows green for configuration updates (e.g., `priority1: 75.50`, `default relinquished`), blue dot for output (e.g., `out: 75.50, priority1` or `out: null, no priority`), red/yellow for errors.
+</script>

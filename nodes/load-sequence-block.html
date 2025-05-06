@@ -1,0 +1,151 @@
+<!-- UI Template Section: Defines the edit dialog for the Load Sequence Block node -->
+<script type="text/html" data-template-name="load-sequence-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-enable" title="Enable sequencing (boolean)"><i class="fa fa-power-off"></i> Enable</label>
+        <input type="checkbox" id="node-input-enable" style="width: auto; vertical-align: middle;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-hysteresis" title="Hysteresis for threshold switching (non-negative number)"><i class="fa fa-exchange"></i> Hysteresis</label>
+        <input type="number" id="node-input-hysteresis" placeholder="0.5" min="0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-threshold1" title="Threshold for load 1 (number)"><i class="fa fa-arrow-up"></i> Threshold 1</label>
+        <input type="number" id="node-input-threshold1" placeholder="10.0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-threshold2" title="Threshold for load 2 (number, > threshold1)"><i class="fa fa-arrow-up"></i> Threshold 2</label>
+        <input type="number" id="node-input-threshold2" placeholder="20.0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-threshold3" title="Threshold for load 3 (number, > threshold2)"><i class="fa fa-arrow-up"></i> Threshold 3</label>
+        <input type="number" id="node-input-threshold3" placeholder="30.0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-threshold4" title="Threshold for load 4 (number, > threshold3)"><i class="fa fa-arrow-up"></i> Threshold 4</label>
+        <input type="number" id="node-input-threshold4" placeholder="40.0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-feedback1" title="Feedback for load 1 (boolean)"><i class="fa fa-refresh"></i> Feedback 1</label>
+        <input type="checkbox" id="node-input-feedback1" style="width: auto; vertical-align: middle;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-feedback2" title="Feedback for load 2 (boolean)"><i class="fa fa-refresh"></i> Feedback 2</label>
+        <input type="checkbox" id="node-input-feedback2" style="width: auto; vertical-align: middle;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-feedback3" title="Feedback for load 3 (boolean)"><i class="fa fa-refresh"></i> Feedback 3</label>
+        <input type="checkbox" id="node-input-feedback3" style="width: auto; vertical-align: middle;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-feedback4" title="Feedback for load 4 (boolean)"><i class="fa fa-refresh"></i> Feedback 4</label>
+        <input type="checkbox" id="node-input-feedback4" style="width: auto; vertical-align: middle;">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("load-sequence-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "load sequence" },
+            enable: { value: true },
+            hysteresis: { value: 0.5, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
+            threshold1: { value: 10.0, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            threshold2: { value: 20.0, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            threshold3: { value: 30.0, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            threshold4: { value: 40.0, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            feedback1: { value: true },
+            feedback2: { value: true },
+            feedback3: { value: true },
+            feedback4: { value: true }
+        },
+        inputs: 1,
+        outputs: 4,
+        inputLabels: ["input"],
+        outputLabels: ["load1", "load2", "load3", "load4"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "load sequence",
+        label: function() {
+            return this.name || "load sequence";
+        },
+        oneditprepare: function() {
+            const id = this.id;
+            $.getJSON(`/load-sequence-block/${id}?t=${Date.now()}`, function(data) {
+                $("#node-input-name").val(data.name || "load-sequence");
+                $("#node-input-enable").prop("checked", data.enable !== false);
+                $("#node-input-hysteresis").val(data.hysteresis !== undefined ? data.hysteresis : 0.5);
+                $("#node-input-threshold1").val(data.threshold1 !== undefined ? data.threshold1 : 10.0);
+                $("#node-input-threshold2").val(data.threshold2 !== undefined ? data.threshold2 : 20.0);
+                $("#node-input-threshold3").val(data.threshold3 !== undefined ? data.threshold3 : 30.0);
+                $("#node-input-threshold4").val(data.threshold4 !== undefined ? data.threshold4 : 40.0);
+                $("#node-input-feedback1").prop("checked", data.feedback1 !== false);
+                $("#node-input-feedback2").prop("checked", data.feedback2 !== false);
+                $("#node-input-feedback3").prop("checked", data.feedback3 !== false);
+                $("#node-input-feedback4").prop("checked", data.feedback4 !== false);
+            }).fail(function() {
+                $("#node-input-name").val(this.name || "load-sequence");
+                $("#node-input-enable").prop("checked", this.enable !== false);
+                $("#node-input-hysteresis").val(this.hysteresis !== undefined ? this.hysteresis : 0.5);
+                $("#node-input-threshold1").val(this.threshold1 !== undefined ? this.threshold1 : 10.0);
+                $("#node-input-threshold2").val(this.threshold2 !== undefined ? this.threshold2 : 20.0);
+                $("#node-input-threshold3").val(this.threshold3 !== undefined ? this.threshold3 : 30.0);
+                $("#node-input-threshold4").val(this.threshold4 !== undefined ? this.threshold4 : 40.0);
+                $("#node-input-feedback1").prop("checked", this.feedback1 !== false);
+                $("#node-input-feedback2").prop("checked", this.feedback2 !== false);
+                $("#node-input-feedback3").prop("checked", this.feedback3 !== false);
+                $("#node-input-feedback4").prop("checked", this.feedback4 !== false);
+            });
+        },
+        oneditsave: function() {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Load Sequence Block node -->
+<script type="text/markdown" data-help-name="load-sequence-block">
+Sequences four boolean outputs based on input thresholds with feedback and hysteresis.
+
+### Inputs
+- **context** (string): Identifies configuration ("enable", "hysteresis", "threshold1-4", "feedback1-4").
+- **payload** (number | string | boolean): Number for input, "kill" to shut down, boolean for enable/feedback1-4, number for hysteresis/threshold1-4.
+
+### Outputs
+1. **load1** (boolean): Output state for load 1, true when active.
+2. **load2** (boolean): Output state for load 2, true when active.
+3. **load3** (boolean): Output state for load 3, true when active.
+4. **load4** (boolean): Output state for load 4, true when active.
+
+### Details
+The Load Sequence Block is a Sedona-inspired node for control systems, sequencing four boolean outputs (`load1` to `load4`) based on a numeric input (`msg.payload`) crossing thresholds (`threshold1` to `threshold4`) with hysteresis and feedback (`feedback1` to `feedback4`). 
+Outputs turn on when the input exceeds a threshold and required feedback is present (e.g., `load2` requires `feedback1`). 
+Outputs turn off when the input falls below `thresholdX - hysteresis` and higher-stage feedback allows. 
+Configure via the editor or `msg.context = "enable"` (boolean), `hysteresis` (non-negative number), `threshold1-4` (numbers, increasing order), `feedback1-4` (booleans). 
+`msg.payload = "kill"` shuts down all outputs. 
+`enable = false` disables outputs sequentially. 
+Tracks active stages (`dOn`).
+
+The node name, `enable`, `hysteresis`, `threshold1-4`, and `feedback1-4` are configurable in the editor; all except `dOn` are configurable via `msg.context`. 
+Editor changes require redeployment; message-based changes apply immediately, resetting to editor values on redeployment.
+
+Outputs are sent only when an output state changes.
+
+Use in automation for staged load control, such as HVAC or pump systems.
+
+### Error Handling
+- Missing `msg.context` or `msg.payload`: Shows "missing context or payload" (red), no output.
+- Missing `msg.payload` for config or input: Shows "missing payload" (red), no output.
+- Invalid enable/feedback1-4 (non-boolean): Shows "invalid enable" (red), no output.
+- Invalid hysteresis (non-numeric, negative): Shows "invalid hysteresis" (red), no output.
+- Invalid threshold1-4 (non-numeric): Shows "invalid thresholdX" (red), no output.
+- Invalid threshold order (threshold1 >= threshold2, etc.): Shows "invalid threshold order" (red), no output.
+- Invalid input (non-numeric, not "kill"): Shows "invalid input" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+
+Status shows green for configuration (e.g., `threshold1 set to 10.00`), blue dot for output changes (e.g., `out: [true, false, false, false], in: 15.00`), blue ring for unchanged outputs (same format), red for kill or errors, yellow for unknown context.
+</script>

@@ -1,0 +1,127 @@
+<!-- UI Template Section: Defines the edit dialog for the Delay Block node -->
+<script type="text/html" data-template-name="delay-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-delayOn" title="Delay for true output (non-negative number, e.g., 1000)"><i class="fa fa-clock-o"></i> On Delay</label>
+        <input type="number" id="node-input-delayOn" placeholder="1000" min="0" step="any">
+        <select id="node-input-delayOnUnits">
+            <option value="milliseconds">Milliseconds</option>
+            <option value="seconds">Seconds</option>
+            <option value="minutes">Minutes</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-delayOff" title="Delay for false output (non-negative number, e.g., 1000)"><i class="fa fa-clock-o"></i> Off Delay</label>
+        <input type="number" id="node-input-delayOff" placeholder="1000" min="0" step="any">
+        <select id="node-input-delayOffUnits">
+            <option value="milliseconds">Milliseconds</option>
+            <option value="seconds">Seconds</option>
+            <option value="minutes">Minutes</option>
+        </select>
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("delay-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "delay" },
+            delayOn: {
+                value: 1000,
+                required: true,
+                validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; }
+            },
+            delayOnUnits: { value: "milliseconds" },
+            delayOff: {
+                value: 1000,
+                required: true,
+                validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; }
+            },
+            delayOffUnits: { value: "milliseconds" }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "delay",
+        label: function () {
+            return this.name || "delay";
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/delay-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "delay");
+                let delayOn = data.delayOn || 1000;
+                let delayOnUnits = "milliseconds";
+                if (delayOn >= 60000 && delayOn % 60000 === 0) {
+                    delayOn = delayOn / 60000;
+                    delayOnUnits = "minutes";
+                } else if (delayOn >= 1000 && delayOn % 1000 === 0) {
+                    delayOn = delayOn / 1000;
+                    delayOnUnits = "seconds";
+                }
+                $("#node-input-delayOn").val(delayOn);
+                $("#node-input-delayOnUnits").val(delayOnUnits);
+                let delayOff = data.delayOff || 1000;
+                let delayOffUnits = "milliseconds";
+                if (delayOff >= 60000 && delayOff % 60000 === 0) {
+                    delayOff = delayOff / 60000;
+                    delayOffUnits = "minutes";
+                } else if (delayOff >= 1000 && delayOff % 1000 === 0) {
+                    delayOff = delayOff / 1000;
+                    delayOffUnits = "seconds";
+                }
+                $("#node-input-delayOff").val(delayOff);
+                $("#node-input-delayOffUnits").val(delayOffUnits);
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "delay");
+                $("#node-input-delayOn").val(this.delayOn || 1000);
+                $("#node-input-delayOnUnits").val(this.delayOnUnits || "milliseconds");
+                $("#node-input-delayOff").val(this.delayOff || 1000);
+                $("#node-input-delayOffUnits").val(this.delayOffUnits || "milliseconds");
+            });
+        },
+        oneditsave: function () {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Delay Block node -->
+<script type="text/markdown" data-help-name="delay-block">
+Delays boolean input with configurable on/off delays.
+
+### Inputs
+- **context** (string): Sets configuration ("reset" to clear state, "delayOn" to set on delay, "delayOff" to set off delay).
+- **payload** (boolean | number): Boolean for state change, number for delay configuration.
+- **units** (string, optional): Units for delay configuration ("milliseconds", "seconds", "minutes").
+
+### Outputs
+- **payload** (boolean): `true` after delayOn ms on false-to-true transition, `false` after delayOff ms on true-to-false transition, preserving other input message properties.
+
+### Details
+The Delay Block is a Sedona-inspired node for control systems, delaying `msg.payload` (boolean) transitions. It outputs `true` after `delayOn` ms on a false-to-true transition and `false` after `delayOff` ms on a true-to-false transition.
+
+The node name and delay settings (`delayOn`, `delayOff`) are configurable in the editor, with selectable units (milliseconds, seconds, minutes). Delays can also be set via `msg.context = "delayOn"` or `msg.context = "delayOff"` with a non-negative number in `msg.payload`, optionally specifying `msg.units`. Reset the state via `msg.context = "reset"` with `msg.payload = true`, clearing pending delays.
+
+Editor changes require redeployment; message updates apply immediately and are reflected in the editor (for delays).
+
+Outputs are new messages with `msg.payload` set to the delayed boolean value, preserving other input message properties (e.g., `msg.topic`), sent only on state transitions.
+
+Use in automation to debounce signals or control timed responses, such as relay switching.
+
+### Error Handling
+- Missing `msg.payload` for config: Shows "missing payload" (red), no output.
+- Invalid input (non-boolean): Shows "invalid input" (red), no output.
+- Invalid reset value (non-boolean): Shows "invalid reset" (red), no output.
+- Invalid delayOn or delayOff (non-numeric, negative): Shows "invalid delayOn" or "invalid delayOff" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (red), no output.
+
+Status shows green for config (e.g., `state reset`, `delayOn: 1000`, `delayOff: 2000`), blue ring for input (e.g., `in: true, awaiting`), blue dot for output (e.g., `out: true, in: true`), red for errors.
+</script>

@@ -1,0 +1,77 @@
+<!-- UI Template Section: Defines the edit dialog for the Compare Block node -->
+<script type="text/html" data-template-name="compare-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-setpoint" title="Default setpoint value for comparison (number)"><i class="fa fa-crosshairs"></i> Setpoint</label>
+        <input type="number" id="node-input-setpoint" placeholder="50" step="any">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("compare-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "compare" },
+            setpoint: { value: 50, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } }
+        },
+        inputs: 1,
+        outputs: 3,
+        outputLabels: ["greater than", "equal to", "less than"],
+        inputLabels: ["input"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "compare",
+        label: function () {
+            return this.name || "compare";
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/compare-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "compare");
+                $("#node-input-setpoint").val(data.setpoint || 50);
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "compare");
+                $("#node-input-setpoint").val(this.setpoint || 50);
+            });
+        },
+        oneditsave: function () {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Compare Block node -->
+<script type="text/markdown" data-help-name="compare-block">
+Compares a number input to a setpoint, outputting three boolean signals.
+
+### Inputs
+- **context** (string): Sets configuration ("setpoint" to update setpoint).
+- **payload** (number): Input number to compare, or setpoint value for config.
+
+### Outputs
+1. **Greater than** (payload: boolean): True if input > setpoint, else false.
+2. **Equal to** (payload: boolean): True if input = setpoint, else false.
+3. **Less than** (payload: boolean): True if input < setpoint, else false.
+
+### Details
+The Compare Block is a Sedona-inspired node for control systems, comparing `msg.payload` (a number) to a setpoint (default: 50). 
+It outputs three messages indicating if the input is greater than, equal to, or less than the setpoint.
+
+The node name and default setpoint are configurable in the editor. The setpoint can be updated via `msg.context = "setpoint"` with `msg.payload` as a number. Editor changes require redeployment to take effect and reset the setpoint to the editor value; message updates apply immediately and are reflected in the editor.
+
+Outputs are new messages (`{ payload: boolean }`), sent to three ports (greater, equal, less) only when the input value changes.
+
+Use in automation workflows for condition monitoring or control logic.
+
+### Error Handling
+- Missing `msg.payload`: Shows "missing payload" (red), no output.
+- Invalid input (non-number, NaN): Shows "invalid input" (red), no output.
+- Invalid setpoint (non-number, NaN): Shows "invalid setpoint" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+
+Status shows green for setpoint updates (e.g., `setpoint: 60.00`), blue dot for output when input changes (e.g., `in: 65.00, sp: 60.00, out: [true, false, false]`), blue ring for unchanged inputs (same format), red/yellow for errors.
+</script>

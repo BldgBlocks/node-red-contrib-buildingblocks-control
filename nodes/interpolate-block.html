@@ -1,0 +1,88 @@
+<!-- UI Template Section: Defines the edit dialog for the Interpolate Block node -->
+<script type="text/html" data-template-name="interpolate-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-points" title="Default points table for interpolation (array of {x, y} objects, ≥2 points)"><i class="fa fa-table"></i> Points</label>
+        <textarea id="node-input-points" placeholder='[{"x": 0, "y": 0}, {"x": 100, "y": 100}]' style="height: 100px;"></textarea>
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("interpolate-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "interpolate" },
+            points: {
+                value: JSON.stringify([{ x: 0, y: 0 }, { x: 100, y: 100 }]),
+                required: true,
+                validate: function(v) {
+                    try {
+                        const points = JSON.parse(v);
+                        return Array.isArray(points) && points.length >= 2 &&
+                               points.every(p => typeof p.x === "number" && !isNaN(p.x) &&
+                                                 typeof p.y === "number" && !isNaN(p.y));
+                    } catch (e) {
+                        return false;
+                    }
+                }
+            }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "interpolate",
+        label: function () {
+            return this.name || "interpolate";
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/interpolate-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "interpolate");
+                $("#node-input-points").val(JSON.stringify(data.points || [{ x: 0, y: 0 }, { x: 100, y: 100 }], null, 2));
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "interpolate");
+                $("#node-input-points").val(this.points || JSON.stringify([{ x: 0, y: 0 }, { x: 100, y: 100 }], null, 2));
+            });
+        },
+        oneditsave: function () {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Interpolate Block node -->
+<script type="text/markdown" data-help-name="interpolate-block">
+Linearly interpolates a number input using a configurable points table.
+
+### Inputs
+- **context** (string): Sets configuration ("points" to update {x, y} table).
+- **payload** (number): Input number to interpolate, or points array for config.
+
+### Outputs
+- **payload** (number): Interpolated output value.
+
+### Details
+The Interpolate Block is a Sedona-inspired node for control systems, interpolating `msg.payload` (a number) using a table of `{x, y}` points (default: `[{x: 0, y: 0}, {x: 100, y: 100}]`).
+
+The node name and default points are configurable in the editor. The points table can be updated via `msg.context = "points"` with `msg.payload` as an array of `{x, y}` objects (≥2 points). Editor changes require redeployment to take effect and reset the points to the editor value; message updates apply immediately and are reflected in the editor.
+
+Outputs are new messages (`{ payload: number }`), sent only when the interpolated value changes.
+
+Use in automation workflows to map input values to outputs, such as scaling sensor data or control signals.
+
+### Error Handling
+- Missing `msg.payload`: Shows "missing payload" (red), no output.
+- Invalid input (non-number, NaN): Shows "invalid input" (red), no output.
+- Invalid points (non-array, <2 points, invalid {x, y}): Shows "invalid points" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+- Input out of range: Shows "input out of range" (red), no output.
+
+Status shows green for points updates (e.g., `points: 2`), blue dot for output when value changes (e.g., `in: 50.00, out: 50.00`), blue ring for unchanged inputs (same format), red/yellow for errors.
+</script>

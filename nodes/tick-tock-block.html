@@ -1,0 +1,66 @@
+<script type="text/html" data-template-name="tick-tock-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-period" title="Period in seconds (positive number, e.g., 10)"><i class="fa fa-clock-o"></i> Period</label>
+        <input type="number" id="node-input-period" placeholder="10" min="0.001" step="any">
+    </div>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType("tick-tock-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "tick-tock" },
+            period: {
+                value: 10,
+                required: true,
+                validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) > 0; }
+            }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "tick tock",
+        label: function() {
+            return this.name || "tick-tock";
+        },
+        oneditprepare: function() {
+            const id = this.id;
+            $.getJSON(`/tick-tock-block/${id}?t=${Date.now()}`, function(data) {
+                $("#node-input-name").val(data.name || "tick-tock");
+                $("#node-input-period").val(data.period || 10);
+            }).fail(function() {
+                $("#node-input-name").val(this.name || "tick-tock");
+                $("#node-input-period").val(this.period || 10);
+            });
+        }
+    });
+</script>
+
+<script type="text/markdown" data-help-name="tick-tock-block">
+Generates a square wave output toggling between true and false.
+
+### Inputs
+- **context** (string): Identifies config ("period", "command").
+- **payload** (number | string): Numeric value for period, string ("start" or "stop") for command.
+
+### Outputs
+- **payload** (boolean): Square wave value (true or false).
+
+### Details
+The Tick Tock Block generates a square wave output toggling between `true` and `false` every half `period` (seconds). Use `msg.context = "command"` with `"start"` to begin or `"stop"` to halt, and `msg.context = "period"` with a positive number to adjust the period. Outputs are sent only when the state changes.
+
+### Error Handling
+- Missing `msg.payload`: Shows "missing payload" (red).
+- Invalid period (non-numeric, non-positive): Shows "invalid period" (red).
+- Invalid command (not "start" or "stop"): Shows "invalid command" (red).
+- Unknown `msg.context`: Shows "unknown context" (yellow).
+
+Status: Green for config (e.g., `period: 10.00`, `started, period: 10.00`), blue for output (e.g., `out: true`), red for stop or errors, yellow for unknown context.
+</script>

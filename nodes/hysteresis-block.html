@@ -1,0 +1,85 @@
+<!-- UI Template Section: Defines the edit dialog for the Hysteresis Block node -->
+<script type="text/html" data-template-name="hysteresis-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-upperLimit" title="Upper threshold for evaluation (number)"><i class="fa fa-arrow-up"></i> Upper Limit</label>
+        <input type="number" id="node-input-upperLimit" placeholder="50" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-lowerLimit" title="Lower threshold for evaluation (number)"><i class="fa fa-arrow-down"></i> Lower Limit</label>
+        <input type="number" id="node-input-lowerLimit" placeholder="30" step="any">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("hysteresis-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "hysteresis" },
+            upperLimit: { value: 50, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            lowerLimit: { value: 30, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } }
+        },
+        inputs: 1,
+        outputs: 3,
+        inputLabels: ["input"],
+        outputLabels: ["above", "within", "below"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "hysteresis",
+        label: function() {
+            return this.name || "hysteresis";
+        },
+        oneditprepare: function() {
+            const id = this.id;
+            $.getJSON(`/hysteresis-block/${id}?t=${Date.now()}`, function(data) {
+                $("#node-input-name").val(data.name || "hysteresis");
+                $("#node-input-upperLimit").val(data.upperLimit !== undefined ? data.upperLimit : 50);
+                $("#node-input-lowerLimit").val(data.lowerLimit !== undefined ? data.lowerLimit : 30);
+            }).fail(function() {
+                $("#node-input-name").val(this.name || "hysteresis");
+                $("#node-input-upperLimit").val(this.upperLimit !== undefined ? this.upperLimit : 50);
+                $("#node-input-lowerLimit").val(this.lowerLimit !== undefined ? this.lowerLimit : 30);
+            });
+        },
+        oneditsave: function() {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Hysteresis Block node -->
+<script type="text/markdown" data-help-name="hysteresis-block">
+Evaluates numeric input against limits with hysteresis.
+
+### Inputs
+- **context** (string): Sets configuration ("upperLimit" or "lowerLimit").
+- **payload** (number): Number for evaluation or configuration value.
+
+### Outputs
+1. **above** (boolean): True when above upper limit.
+2. **within** (boolean): True when within limits.
+3. **below** (boolean): True when below lower limit.
+
+### Details
+The Hysteresis Block is a Sedona-inspired node for control systems, evaluating `msg.payload` (number) against `upperLimit` and `lowerLimit` with hysteresis, outputting `true` to one output on state change: `above` (output 1), `within` (output 2), `below` (output 3). 
+Configure limits via editor or `msg.context = "upperLimit"` or `msg.context = "lowerLimit"` with `msg.payload` as a number. 
+The node name, `upperLimit`, and `lowerLimit` are configurable in the editor; `upperLimit` and `lowerLimit` are also configurable via `msg.context`. 
+Editor changes require redeployment; message-based changes apply immediately, resetting to editor values on redeployment.
+
+Outputs are new messages (`{ payload: true }` on one port, `{ payload: false }` on others), sent only on state change.
+
+Use in automation for threshold-based control with hysteresis to prevent rapid switching.
+
+### Error Handling
+- Missing `msg.payload` for `msg.context`: Shows "missing payload" (red), no output.
+- Invalid input (undefined, non-numeric): Shows "invalid input" (red), no output.
+- Invalid upperLimit (non-numeric, ≤ lowerLimit): Shows "invalid upperLimit" (red), no output.
+- Invalid lowerLimit (non-numeric, ≥ upperLimit): Shows "invalid lowerLimit" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+
+Status shows green for configuration (e.g., `upperLimit set: 50.00`), blue dot for output on state change (e.g., `out: within, in: 40.00`), blue ring for unchanged state (same format), red for errors, yellow for unknown context.
+</script>

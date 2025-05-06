@@ -1,0 +1,153 @@
+<!-- UI Template Section: Defines the edit dialog for the PID Block node -->
+<script type="text/html" data-template-name="pid-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-kp" title="Proportional gain (number)"><i class="fa fa-sliders"></i> Kp</label>
+        <input type="number" id="node-input-kp" placeholder="0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-ki" title="Integral gain (number)"><i class="fa fa-sliders"></i> Ki</label>
+        <input type="number" id="node-input-ki" placeholder="0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-kd" title="Derivative gain (number)"><i class="fa fa-sliders"></i> Kd</label>
+        <input type="number" id="node-input-kd" placeholder="0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-setpoint" title="Target setpoint (number)"><i class="fa fa-crosshairs"></i> Setpoint</label>
+        <input type="number" id="node-input-setpoint" placeholder="0" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-deadband" title="Deadband range around setpoint (non-negative number)"><i class="fa fa-arrows-h"></i> Deadband</label>
+        <input type="number" id="node-input-deadband" placeholder="0" step="any" min="0">
+    </div>
+    <div class="form-row">
+        <label for="node-input-dbBehavior" title="Deadband behavior: ReturnToZero or HoldLastResult"><i class="fa fa-cog"></i> Deadband Behavior</label>
+        <select id="node-input-dbBehavior">
+            <option value="ReturnToZero">ReturnToZero</option>
+            <option value="HoldLastResult">HoldLastResult</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-outMin" title="Minimum output limit (number, less than outMax, leave empty for no limit)"><i class="fa fa-arrow-down"></i> Out Min</label>
+        <input type="number" id="node-input-outMin" placeholder="No min" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-outMax" title="Maximum output limit (number, greater than outMin, leave empty for no limit)"><i class="fa fa-arrow-up"></i> Out Max</label>
+        <input type="number" id="node-input-outMax" placeholder="No max" step="any">
+    </div>
+    <div class="form-row">
+        <label for="node-input-maxChange" title="Maximum output change per cycle (non-negative number)"><i class="fa fa-exchange"></i> Max Change</label>
+        <input type="number" id="node-input-maxChange" placeholder="0" step="any" min="0">
+    </div>
+    <div class="form-row">
+        <label for="node-input-directAction" title="Direct (true) or reverse (false) action"><i class="fa fa-exchange"></i> Direct Action</label>
+        <input type="checkbox" id="node-input-directAction" style="width: auto;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-run" title="Enable (true) or disable (false) PID calculation"><i class="fa fa-play"></i> Run</label>
+        <input type="checkbox" id="node-input-run" style="width: auto;" checked>
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("pid-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "pid" },
+            kp: { value: 0, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            ki: { value: 0, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            kd: { value: 0, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            setpoint: { value: 0, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
+            deadband: { value: 0, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
+            dbBehavior: { value: "ReturnToZero" },
+            outMin: { value: "", validate: function(v) { return v === "" || !isNaN(parseFloat(v)); } },
+            outMax: { value: "", validate: function(v) { return v === "" || !isNaN(parseFloat(v)); } },
+            maxChange: { value: 0, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
+            directAction: { value: false },
+            run: { value: true }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "pid",
+        label: function () {
+            return this.name || "pid";
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/pid-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "pid");
+                $("#node-input-kp").val(data.kp || 0);
+                $("#node-input-ki").val(data.ki || 0);
+                $("#node-input-kd").val(data.kd || 0);
+                $("#node-input-setpoint").val(data.setpoint || 0);
+                $("#node-input-deadband").val(data.deadband || 0);
+                $("#node-input-dbBehavior").val(data.dbBehavior || "ReturnToZero");
+                $("#node-input-outMin").val(data.outMin == null ? "" : data.outMin);
+                $("#node-input-outMax").val(data.outMax == null ? "" : data.outMax);
+                $("#node-input-maxChange").val(data.maxChange || 0);
+                $("#node-input-directAction").prop("checked", !!data.directAction);
+                $("#node-input-run").prop("checked", data.run !== false);
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "pid");
+                $("#node-input-kp").val(this.kp || 0);
+                $("#node-input-ki").val(this.ki || 0);
+                $("#node-input-kd").val(this.kd || 0);
+                $("#node-input-setpoint").val(this.setpoint || 0);
+                $("#node-input-deadband").val(this.deadband || 0);
+                $("#node-input-dbBehavior").val(this.dbBehavior || "ReturnToZero");
+                $("#node-input-outMin").val(this.outMin == null ? "" : this.outMin);
+                $("#node-input-outMax").val(this.outMax == null ? "" : this.outMax);
+                $("#node-input-maxChange").val(this.maxChange || 0);
+                $("#node-input-directAction").prop("checked", !!this.directAction);
+                $("#node-input-run").prop("checked", this.run !== false);
+            });
+        },
+        oneditsave: function () {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the PID Block node -->
+<script type="text/markdown" data-help-name="pid-block">
+Implements a PID controller with deadband, output limits, and tuning.
+
+### Inputs
+- **context** (string): Sets configuration ("setpoint", "kp", "ki", "kd", "deadband", "dbBehavior", "outMin", "outMax", "maxChange", "directAction", "run", "reset", "tune").
+- **payload** (number | boolean | string): Number for input/setpoint/kp/ki/kd/deadband/outMin/outMax/maxChange/tune kp, boolean for run/directAction, string for dbBehavior ("ReturnToZero" or "HoldLastResult").
+
+### Outputs
+- **payload** (number): PID control output.
+- **diagnostics** (object): `{ pGain, intGain, dGain, error, errorSum }`.
+- **tuneResult** (object): `{ Kp, Ki, Kd, Ku, Tu }` when tuning completes.
+
+### Details
+The PID Block is a Sedona-inspired node for control systems, calculating a PID control output based on `msg.payload` (number), a setpoint, and gains (`kp`, `ki`, `kd`). It supports deadband (`deadband`, `dbBehavior`), output limits (`outMin`, `outMax`), rate of change limit (`maxChange`), direct/reverse action (`directAction`), integral clamping, and Ziegler-Nichols tuning.
+
+Configure via the editor or `msg.context` with numbers, booleans, or strings. Special commands: `reset` (clears state), `tune` (starts tuning with kp). Editor changes require redeployment; message updates apply immediately and are reflected in the editor (except `reset`, `tune`).
+
+Outputs are new messages with `payload` (control output), `diagnostics`, and `tuneResult` (for tuning). Messages are sent only when the output or tuning result changes.
+
+Use in automation for precise control of systems like temperature or motor speed.
+
+### Error Handling
+- Missing `msg.payload` for config: Shows "missing payload" (red), no output.
+- Invalid setpoint/kp/ki/kd/deadband/outMin/outMax/maxChange/tune kp (non-numeric): Shows "invalid [context]" (red), no output.
+- Invalid deadband/maxChange (negative): Shows "invalid [context]" (red), no output.
+- Invalid run/directAction (non-boolean): Shows "invalid [context]" (red), no output.
+- Invalid dbBehavior (not "ReturnToZero" or "HoldLastResult"): Shows "invalid dbBehavior" (red), no output.
+- Invalid output range (outMax <= outMin): Shows "invalid output range" (red), no output.
+- Invalid input (non-numeric): Shows "invalid input" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+
+Status shows green for config (e.g., `setpoint: 50.00`, `tune: completed`), red for reset/tune start (e.g., `reset: state cleared`), blue dot for output when value changes (e.g., `out: 50.00, in: 25.00, setpoint: 50.00`), blue ring for unchanged inputs, red/yellow for errors.
+</script>

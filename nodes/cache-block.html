@@ -1,0 +1,67 @@
+<!-- UI Template Section: Defines the edit dialog for the Cache Block node -->
+<script type="text/html" data-template-name="cache-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<!-- JavaScript Section: Registers the node and handles editor logic -->
+<script type="text/javascript">
+    RED.nodes.registerType("cache-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "cache" }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "cache",
+        label: function() {
+            return this.name || "cache";
+        },
+        oneditprepare: function() {
+            const id = this.id;
+            $.getJSON(`/cache-block/${id}?t=${Date.now()}`, function(data) {
+                $("#node-input-name").val(data.name || "cache");
+            }).fail(function() {
+                $("#node-input-name").val(this.name || "cache");
+            });
+        },
+        oneditsave: function() {
+            // Standard config properties are automatically saved by Node-RED
+        }
+    });
+</script>
+
+<!-- Help Section: Provides documentation for the Cache Block node -->
+<script type="text/markdown" data-help-name="cache-block">
+Caches a value and outputs it on request.
+
+### Inputs
+- **context** (string): Sets action ("update" to store, "execute" to output, "reset" to clear value).
+- **payload** (any | boolean): Value to store or output, boolean (true) for reset.
+
+### Outputs
+1. **output** (any): Last stored value on execute.
+
+### Details
+The Cache Block is a Sedona-inspired node for control systems, storing `msg.payload` when `msg.context = "update"`, outputting the last stored value when `msg.context = "execute"`. 
+Clears the stored value to null via `msg.context = "reset"` with `msg.payload = true`. 
+The node name is configurable only in the editor. Actions are controlled via `msg.context`.
+
+Outputs are new messages (`msg` with `msg.payload = lastValue`) only when `msg.context = "execute"`.
+
+Use in automation to hold and retrieve values in workflows.
+
+### Error Handling
+- Missing `msg.context`: Shows "missing context" (red), no output.
+- Missing `msg.payload`: Shows "missing payload" (red), no output.
+- Invalid reset value (non-boolean, not true): Shows "invalid reset" (red), no output.
+- Unknown `msg.context`: Shows "unknown context" (yellow), no output.
+
+Status shows green for reset (e.g., `state reset`), blue ring for input (e.g., `in: update=5`), blue dot for output (e.g., `out: 5, in: execute=5`), red for errors, yellow for unknown context.
+</script>
