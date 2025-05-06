@@ -5,7 +5,7 @@ module.exports = function(RED) {
         const node = this;
         
         // Initialize properties from config
-        node.name = config.name || "time-sequence";
+        node.name = config.name || "time sequence";
         node.delay = parseFloat(config.delay) || 5000;
 
         // Validate initial config
@@ -144,7 +144,7 @@ module.exports = function(RED) {
         const node = RED.nodes.getNode(req.params.id);
         if (node && node.type === "time-sequence-block") {
             res.json({
-                name: node.name || "time-sequence",
+                name: node.name || "time sequence",
                 delay: !isNaN(node.delay) && node.delay >= 0 ? node.delay : 5000,
                 stage: node.stage || 0
             });

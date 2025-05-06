@@ -31,10 +31,10 @@
         oneditprepare: function() {
             const id = this.id;
             $.getJSON(`/time-sequence-block/${id}?t=${Date.now()}`, function(data) {
-                $("#node-input-name").val(data.name || "time-sequence");
+                $("#node-input-name").val(data.name || "time sequence");
                 $("#node-input-delay").val(data.delay !== undefined ? data.delay : 5000);
             }).fail(function() {
-                $("#node-input-name").val(this.name || "time-sequence");
+                $("#node-input-name").val(this.name || "time sequence");
                 $("#node-input-delay").val(this.delay !== undefined ? this.delay : 5000);
             });
         },

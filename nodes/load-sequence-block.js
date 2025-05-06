@@ -5,7 +5,7 @@ module.exports = function(RED) {
         const node = this;
         
         // Initialize properties from config
-        node.name = config.name || "load-sequence";
+        node.name = config.name || "load sequence";
         node.enable = config.enable !== false;
         node.hysteresis = parseFloat(config.hysteresis) || 0.5;
         node.threshold1 = parseFloat(config.threshold1) || 10.0;
@@ -328,7 +328,7 @@ module.exports = function(RED) {
         const node = RED.nodes.getNode(req.params.id);
         if (node && node.type === "load-sequence-block") {
             res.json({
-                name: node.name || "load-sequence",
+                name: node.name || "load sequence",
                 enable: node.enable !== false,
                 hysteresis: !isNaN(node.hysteresis) && node.hysteresis >= 0 ? node.hysteresis : 0.5,
                 threshold1: !isNaN(node.threshold1) ? node.threshold1 : 10.0,

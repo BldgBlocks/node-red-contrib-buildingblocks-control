@@ -5,7 +5,7 @@ module.exports = function(RED) {
         const node = this;
         
         // Initialize properties from config
-        node.name = config.name || "scale-range";
+        node.name = config.name || "scale range";
         node.inMin = parseFloat(config.inMin) || 0.0;
         node.inMax = parseFloat(config.inMax) || 100.0;
         node.outMin = parseFloat(config.outMin) || 0.0;
@@ -185,7 +185,7 @@ module.exports = function(RED) {
         const node = RED.nodes.getNode(req.params.id);
         if (node && node.type === "scale-range-block") {
             res.json({
-                name: node.name || "scale-range",
+                name: node.name || "scale range",
                 inMin: !isNaN(node.inMin) ? node.inMin : 0.0,
                 inMax: !isNaN(node.inMax) ? node.inMax : 100.0,
                 outMin: !isNaN(node.outMin) ? node.outMin : 0.0,

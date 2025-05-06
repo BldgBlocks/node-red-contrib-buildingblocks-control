@@ -5,7 +5,7 @@ module.exports = function(RED) {
         const node = this;
         
         // Initialize properties from config
-        node.name = config.name || "saw-tooth-wave";
+        node.name = config.name || "saw-tooth wave";
         node.lowerLimit = parseFloat(config.lowerLimit) || 0;
         node.upperLimit = parseFloat(config.upperLimit) || 100;
         const periodMultiplier = config.periodUnits === "minutes" ? 60000 : config.periodUnits === "seconds" ? 1000 : 1;
@@ -149,7 +149,7 @@ module.exports = function(RED) {
                 periodUnits = "seconds";
             }
             res.json({
-                name: node.name || "saw-tooth-wave",
+                name: node.name || "saw-tooth wave",
                 lowerLimit: node.lowerLimit || 0,
                 upperLimit: node.upperLimit || 100,
                 period: period,

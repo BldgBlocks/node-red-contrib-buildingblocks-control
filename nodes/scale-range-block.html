@@ -51,14 +51,14 @@
         oneditprepare: function() {
             const id = this.id;
             $.getJSON(`/scale-range-block/${id}?t=${Date.now()}`, function(data) {
-                $("#node-input-name").val(data.name || "scale-range");
+                $("#node-input-name").val(data.name || "scale range");
                 $("#node-input-inMin").val(data.inMin !== undefined ? data.inMin : 0.0);
                 $("#node-input-inMax").val(data.inMax !== undefined ? data.inMax : 100.0);
                 $("#node-input-outMin").val(data.outMin !== undefined ? data.outMin : 0.0);
                 $("#node-input-outMax").val(data.outMax !== undefined ? data.outMax : 80.0);
                 $("#node-input-clamp").prop("checked", data.clamp !== false);
             }).fail(function() {
-                $("#node-input-name").val(this.name || "scale-range");
+                $("#node-input-name").val(this.name || "scale range");
                 $("#node-input-inMin").val(this.inMin !== undefined ? this.inMin : 0.0);
                 $("#node-input-inMax").val(this.inMax !== undefined ? this.inMax : 100.0);
                 $("#node-input-outMin").val(this.outMin !== undefined ? this.outMin : 0.0);

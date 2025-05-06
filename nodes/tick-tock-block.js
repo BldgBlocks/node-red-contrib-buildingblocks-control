@@ -4,7 +4,7 @@ module.exports = function(RED) {
         const node = this;
 
         // Initialize from editor config
-        node.name = config.name || "tick-tock";
+        node.name = config.name || "tick tock";
         node.period = parseFloat(config.period) || 10;
 
         // Validate period
@@ -117,7 +117,7 @@ module.exports = function(RED) {
         const node = RED.nodes.getNode(req.params.id);
         if (node && node.type === "tick-tock-block") {
             res.json({
-                name: node.name || "tick-tock",
+                name: node.name || "tick tock",
                 period: node.period || 10
             });
         } else {

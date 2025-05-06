@@ -14,7 +14,7 @@
         category: "control",
         color: "#301934",
         defaults: {
-            name: { value: "tick-tock" },
+            name: { value: "tick tock" },
             period: {
                 value: 10,
                 required: true,
@@ -28,15 +28,15 @@
         icon: "font-awesome/fa-wrench",
         paletteLabel: "tick tock",
         label: function() {
-            return this.name || "tick-tock";
+            return this.name || "tick tock";
         },
         oneditprepare: function() {
             const id = this.id;
             $.getJSON(`/tick-tock-block/${id}?t=${Date.now()}`, function(data) {
-                $("#node-input-name").val(data.name || "tick-tock");
+                $("#node-input-name").val(data.name || "tick tock");
                 $("#node-input-period").val(data.period || 10);
             }).fail(function() {
-                $("#node-input-name").val(this.name || "tick-tock");
+                $("#node-input-name").val(this.name || "tick tock");
                 $("#node-input-period").val(this.period || 10);
             });
         }

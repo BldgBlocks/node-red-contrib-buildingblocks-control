@@ -29,7 +29,7 @@
         category: "control",
         color: "#301934",
         defaults: {
-            name: { value: "saw-tooth-wave" },
+            name: { value: "saw-tooth wave" },
             lowerLimit: { value: 0, required: true, validate: RED.validators.number() },
             upperLimit: { value: 100, required: true, validate: RED.validators.number() },
             period: {
@@ -46,18 +46,18 @@
         icon: "font-awesome/fa-wrench",
         paletteLabel: "saw-tooth wave",
         label: function () {
-            return this.name || "saw-tooth-wave";
+            return this.name || "saw-tooth wave";
         },
         oneditprepare: function () {
             const id = this.id;
             $.getJSON(`/saw-tooth-wave-block/${id}?t=${Date.now()}`, function (data) {
-                $("#node-input-name").val(data.name || "saw-tooth-wave");
+                $("#node-input-name").val(data.name || "saw-tooth wave");
                 $("#node-input-lowerLimit").val(data.lowerLimit || 0);
                 $("#node-input-upperLimit").val(data.upperLimit || 100);
                 $("#node-input-period").val(data.period || 10);
                 $("#node-input-periodUnits").val(data.periodUnits || "seconds");
             }).fail(function () {
-                $("#node-input-name").val(this.name || "saw-tooth-wave");
+                $("#node-input-name").val(this.name || "saw-tooth wave");
                 $("#node-input-lowerLimit").val(this.lowerLimit || 0);
                 $("#node-input-upperLimit").val(this.upperLimit || 100);
                 $("#node-input-period").val(this.period || 10);

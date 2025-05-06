@@ -36,7 +36,8 @@
       "time-sequence-block": "nodes/time-sequence-block.js",
       "analog-switch-block": "nodes/analog-switch-block.js",
       "scale-range-block": "nodes/scale-range-block.js",
-      "load-sequence-block": "nodes/load-sequence-block.js"
+      "load-sequence-block": "nodes/load-sequence-block.js",
+      "contextual-label-block": "nodes/contextual-label-block.js"
     }
   },
   "author": "buildingblocks",

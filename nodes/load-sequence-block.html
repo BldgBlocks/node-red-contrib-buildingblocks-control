@@ -52,7 +52,7 @@
         category: "control",
         color: "#301934",
         defaults: {
-            name: { value: "load-sequence" },
+            name: { value: "load sequence" },
             enable: { value: true },
             hysteresis: { value: 0.5, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
             threshold1: { value: 10.0, required: true, validate: function(v) { return !isNaN(parseFloat(v)); } },
@@ -69,14 +69,14 @@
         inputLabels: ["input"],
         outputLabels: ["load1", "load2", "load3", "load4"],
         icon: "font-awesome/fa-wrench",
-        paletteLabel: "loadsequence",
+        paletteLabel: "load sequence",
         label: function() {
-            return this.name || "load-sequence";
+            return this.name || "load sequence";
         },
         oneditprepare: function() {
             const id = this.id;
             $.getJSON(`/load-sequence-block/${id}?t=${Date.now()}`, function(data) {
-                $("#node-input-name").val(data.name || "load-sequence");
+                $("#node-input-name").val(data.name || "load sequence");
                 $("#node-input-enable").prop("checked", data.enable !== false);
                 $("#node-input-hysteresis").val(data.hysteresis !== undefined ? data.hysteresis : 0.5);
                 $("#node-input-threshold1").val(data.threshold1 !== undefined ? data.threshold1 : 10.0);
@@ -88,7 +88,7 @@
                 $("#node-input-feedback3").prop("checked", data.feedback3 !== false);
                 $("#node-input-feedback4").prop("checked", data.feedback4 !== false);
             }).fail(function() {
-                $("#node-input-name").val(this.name || "load-sequence");
+                $("#node-input-name").val(this.name || "load sequence");
                 $("#node-input-enable").prop("checked", this.enable !== false);
                 $("#node-input-hysteresis").val(this.hysteresis !== undefined ? this.hysteresis : 0.5);
                 $("#node-input-threshold1").val(this.threshold1 !== undefined ? this.threshold1 : 10.0);

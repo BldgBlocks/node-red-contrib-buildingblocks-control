@@ -1,0 +1,71 @@
+<!-- UI Template Section -->
+<script type="text/html" data-template-name="contextual-label-block">
+    <div class="form-row">
+        <label for="node-input-contextPropertyName" title="Context property to set (e.g., priority, clear, in1)"><i class="fa fa-key"></i> Context Property</label>
+        <input type="text" id="node-input-contextPropertyName" placeholder="e.g., priority">
+    </div>
+</script>
+
+<!-- JavaScript Section -->
+<script type="text/javascript">
+    RED.nodes.registerType("contextual-label-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            contextPropertyName: { value: "context", required: true, validate: function(v) { return v && typeof v === "string" && v.trim().length > 0; } }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "contextual label",
+        label: function() {
+            return `Contextual ${this.contextPropertyName || "context"}`;
+        },
+        oneditprepare: function() {
+            const id = this.id;
+            $.getJSON(`/contextual-label-block/${id}?t=${Date.now()}`, function(data) {
+                $("#node-input-contextPropertyName").val(data.contextPropertyName || "context");
+            }).fail(function() {
+                $("#node-input-contextPropertyName").val(this.contextPropertyName || "context");
+            });
+        },
+        oneditsave: function() {
+            // Standard config properties are automatically saved
+        }
+    });
+</script>
+
+<!-- Help Section -->
+<script type="text/markdown" data-help-name="contextual-label-block">
+Attaches a context property to a message, passing through the existing payload.
+
+### Inputs
+- **input** (any): The input message with an existing `msg.payload`.
+
+### Outputs
+1. **output** (object): Message with `msg.context` set to the context property and `msg.payload` unchanged.
+
+### Details
+The Contextual Label Block is a Sedona-inspired node for control systems, attaching a context property (`msg.context`) to a message without modifying its existing `msg.payload`. 
+Configure a single context property (e.g., `priority`, `clear`, `in1`) in the editor, which sets the node’s display name as `Contextual <contextProperty>`. 
+The node passes through the input `msg.payload` unchanged, making it ideal for labeling messages for priority levels, clearing priorities, or input designations.
+
+The context property is configurable in the editor. 
+Changes require redeployment. 
+No runtime configuration is supported.
+
+Use in automation to label messages for nodes like Priority or Load Sequence without altering the payload.
+
+### Examples
+- **Set Priority**: Set `contextProperty = priority`, input `{ payload: 5 }`, output `{ context: "priority", payload: 5 }`.
+- **Clear Priority**: Set `contextProperty = clear`, input `{ payload: null }`, output `{ context: "clear", payload: null }`.
+- **Set Input**: Set `contextProperty = in1`, input `{ payload: 42.0 }`, output `{ context: "in1", payload: 42.0 }`.
+
+### Error Handling
+- Missing `msg` or invalid input (not an object): Shows "missing message" (red), no output.
+- Invalid context property (empty or non-string): Shows "invalid context property" (red), no output.
+
+Status shows blue dot for output changes (e.g., `context: priority, value: 5`), blue ring for unchanged output (same format), red for errors.
+</script>
