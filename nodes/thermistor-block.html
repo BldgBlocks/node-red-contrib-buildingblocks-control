@@ -1,0 +1,118 @@
+<!-- UI Template Section -->
+<script type="text/html" data-template-name="thermistor-block">
+    <div class="form-row">
+        <label for="node-input-name" title="display name shown on the canvas"><i class="fa fa-tag"></i> name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-R_fixed" title="fixed resistor value in ohms for thermistor circuit"><i class="fa fa-wrench"></i> r_fixed (ohms)</label>
+        <input type="number" id="node-input-R_fixed" placeholder="23500" min="0.01" step="0.01">
+    </div>
+    <div class="form-row">
+        <label for="node-input-Vsupply" title="supply voltage in volts for the thermistor circuit"><i class="fa fa-bolt"></i> vsupply (volts)</label>
+        <input type="number" id="node-input-Vsupply" placeholder="5.08" min="0.01" step="0.01">
+    </div>
+    <div class="form-row">
+        <label for="node-input-Vref" title="reference voltage in volts for ADC conversion"><i class="fa fa-bolt"></i> vref (volts)</label>
+        <input type="number" id="node-input-Vref" placeholder="4.096" min="0.01" step="0.01">
+    </div>
+    <div class="form-row">
+        <label for="node-input-ADC_max" title="maximum ADC value for raw data conversion"><i class="fa fa-microchip"></i> adc_max</label>
+        <input type="number" id="node-input-ADC_max" placeholder="32768" min="1" step="1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-name" title="display name shown on the canvas"><i class="fa fa-tag"></i> name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<!-- JavaScript Section -->
+<script type="text/javascript">
+    RED.nodes.registerType("thermistor-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "" },
+            R_fixed: { value: 23500, required: true, validate: function (v) { return Number(v) > 0; } },
+            Vsupply: { value: 5.08, required: true, validate: function (v) { return Number(v) > 0; } },
+            Vref: { value: 4.096, required: true, validate: function (v) { return Number(v) > 0; } },
+            ADC_max: { value: 32768, required: true, validate: function (v) { return Number(v) > 0; } }
+        },
+        inputs: 1,
+        outputs: 2,
+        inputLabels: ["raw data"],
+        outputLabels: ["voltage", "resistance"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "thermistor",
+        label: function () {
+            return this.name ? `Thermistor ${this.name}` : `thermistor ${this.R_fixed} ohms`;
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/thermistor-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "");
+                $("#node-input-R_fixed").val(data.R_fixed || 23500);
+                $("#node-input-Vsupply").val(data.Vsupply || 5.08);
+                $("#node-input-Vref").val(data.Vref || 4.096);
+                $("#node-input-ADC_max").val(data.ADC_max || 32768);
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "");
+                $("#node-input-R_fixed").val(this.R_fixed || 23500);
+                $("#node-input-Vsupply").val(this.Vsupply || 5.08);
+                $("#node-input-Vref").val(this.Vref || 4.096);
+                $("#node-input-ADC_max").val(this.ADC_max || 32768);
+            });
+        }
+    });
+</script>
+
+<!-- Help Section -->
+<script type="text/markdown" data-help-name="thermistor-block">
+Converts a 16-bit raw sensor value into voltage and thermistor resistance.
+
+### Inputs
+- **payload** <span class="property-type">array | buffer | object</span>
+  - Two-byte array `[highByte, lowByte]`, 2-byte buffer, or object `{type: "Buffer", data: [highByte, lowByte]}` representing a 16-bit raw value.
+
+### Outputs
+- Voltage output
+  - **payload** <span class="property-type">number</span>
+    - Calculated voltage in volts.
+- Resistance output
+  - **payload** <span class="property-type">number</span>
+    - Calculated thermistor resistance in ohms.
+
+### Details
+`msg.payload` must be a two-byte array `[highByte, lowByte]`, a 2-byte buffer, or an object `{type: "Buffer", data: [highByte, lowByte]}` from an ADC. The node calculates:
+- Voltage: `voltage = (raw * vref) / adc_max`, where `raw = (highByte << 8) | lowByte`.
+- Resistance: `r_thermistor = r_fixed * (voltage / (vsupply - voltage))`.
+
+The node outputs only when the calculated voltage or resistance changes, reducing unnecessary messages. The last valid voltage and resistance are stored in context to maintain status across restarts.
+
+Configuration options:
+- `r_fixed`: Fixed resistor value in ohms (default: 23500).
+- `vsupply`: Supply voltage in volts (default: 5.08).
+- `vref`: Reference voltage in volts for ADC conversion (default: 4.096).
+- `adc_max`: Maximum ADC value (default: 32768).
+- `name`: Optional display name for the node.
+
+Use this node in control systems to convert raw ADC data from a thermistor circuit into voltage and resistance for applications like temperature monitoring.
+
+### Error Handling
+- Missing message: Shows `missing message` (red).
+- Invalid input (not a two-byte array, buffer, or valid buffer object): Shows `invalid input: <value>` (red).
+- Raw value out of range (negative or > adc_max): Shows `raw value out of range` (red).
+- Voltage out of range (≤ 0 or ≥ vsupply): Shows `voltage out of range` (red).
+- Invalid resistance (negative or NaN): Shows `invalid resistance` (red).
+- Invalid configuration (e.g., negative r_fixed): Shows `invalid <property>` (red).
+- Calculation errors: Shows `calculation error` (red).
+
+Status shows:
+- Blue dot for new output (`voltage: X.XX v, resistance: Y.YY ohms`).
+- Blue ring for unchanged output (`voltage: X.XX v, resistance: Y.YY ohms`).
+- Red ring for errors (`invalid input`, `invalid r_fixed`).
+
+### References
+- [Node-RED Documentation](https://nodered.org/docs/) - official Node-RED documentation
+- [GitHub Repository](https://github.com/your-repo/node-red-contrib-buildingblocks-control) - source code and additional help
+</script>

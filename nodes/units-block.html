@@ -1,0 +1,154 @@
+<!-- UI Template Section -->
+<script type="text/html" data-template-name="units-block">
+    <div class="form-row">
+        <label for="node-input-unit" title="unit to append to msg.units"><i class="fa fa-wrench"></i> unit</label>
+        <select id="node-input-unit">
+            <optgroup label="Temperature">
+                <option value="°C">°C (Celsius)</option>
+                <option value="°F">°F (Fahrenheit)</option>
+                <option value="K">K (Kelvin)</option>
+            </optgroup>
+            <optgroup label="Humidity">
+                <option value="%RH">%RH (Relative Humidity)</option>
+                <option value="%">% (Percent)</option>
+            </optgroup>
+            <optgroup label="Pressure">
+                <option value="Pa">Pa (Pascal)</option>
+                <option value="kPa">kPa (Kilopascal)</option>
+                <option value="bar">bar</option>
+                <option value="mbar">mbar (Millibar)</option>
+                <option value="psi">psi</option>
+                <option value="atm">atm (Atmosphere)</option>
+                <option value="inH₂O">inH₂O (Inches of Water)</option>
+                <option value="mmH₂O">mmH₂O (Millimeters of Water)</option>
+            </optgroup>
+            <optgroup label="Airflow">
+                <option value="CFM">CFM (Cubic Feet per Minute)</option>
+                <option value="m³/h">m³/h (Cubic Meters per Hour)</option>
+                <option value="L/s">L/s (Liters per Second)</option>
+            </optgroup>
+            <optgroup label="Electrical">
+                <option value="V">V (Volt)</option>
+                <option value="mV">mV (Millivolt)</option>
+                <option value="A">A (Ampere)</option>
+                <option value="mA">mA (Milliampere)</option>
+                <option value="W">W (Watt)</option>
+                <option value="Ω">Ω (Ohm)</option>
+            </optgroup>
+            <optgroup label="Length">
+                <option value="m">m (Meter)</option>
+                <option value="cm">cm (Centimeter)</option>
+                <option value="mm">mm (Millimeter)</option>
+                <option value="km">km (Kilometer)</option>
+                <option value="ft">ft (Foot)</option>
+                <option value="in">in (Inch)</option>
+            </optgroup>
+            <optgroup label="Mass">
+                <option value="kg">kg (Kilogram)</option>
+                <option value="g">g (Gram)</option>
+                <option value="lb">lb (Pound)</option>
+            </optgroup>
+            <optgroup label="Time">
+                <option value="s">s (Second)</option>
+                <option value="min">min (Minute)</option>
+                <option value="h">h (Hour)</option>
+            </optgroup>
+            <optgroup label="Volume">
+                <option value="L">L (Liter)</option>
+                <option value="mL">mL (Milliliter)</option>
+                <option value="gal">gal (Gallon)</option>
+            </optgroup>
+            <optgroup label="Light">
+                <option value="lx">lx (Lux)</option>
+                <option value="cd">cd (Candela)</option>
+            </optgroup>
+            <optgroup label="Magnetic">
+                <option value="B">B (Bel)</option>
+                <option value="T">T (Tesla)</option>
+            </optgroup>
+        </select>
+    </div>
+    <div class="form-row">
+        <label for="node-input-name" title="display name shown on the canvas"><i class="fa fa-tag"></i> name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+</script>
+
+<!-- JavaScript Section -->
+<script type="text/javascript">
+    RED.nodes.registerType("units-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "" },
+            unit: { value: "°F", required: true }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["output with units"],
+        icon: "font-awesome/fa-wrench",
+        paletteLabel: "units",
+        label: function () {
+            return this.name ? `Units ${this.name}` : `units ${this.unit}`;
+        },
+        oneditprepare: function () {
+            const id = this.id;
+            $.getJSON(`/units-block/${id}?t=${Date.now()}`, function (data) {
+                $("#node-input-name").val(data.name || "");
+                $("#node-input-unit").val(data.unit || "°F");
+            }).fail(function () {
+                $("#node-input-name").val(this.name || "");
+                $("#node-input-unit").val(this.unit || "°F");
+            });
+        }
+    });
+</script>
+
+<!-- Help Section -->
+<script type="text/markdown" data-help-name="units-block">
+Appends a selected unit to msg.units of any input message.
+
+### Inputs
+- **payload** <span class="property-type">any</span>
+  - The input message payload to pass through unchanged.
+
+### Outputs
+- **payload** <span class="property-type">any</span>
+  - The original payload.
+- **units** <span class="property-type">string</span>
+  - The selected unit (e.g., °F, %RH, inH₂O).
+
+### Details
+The Units Block node appends a `msg.units` property to any input message, set to a unit selected from a dropdown menu in the editor. The original `msg.payload` and other properties are passed through unchanged. The node supports common sensor units, including HVAC-specific units like relative humidity (%RH), static pressure (inH₂O, mmH₂O), airflow (CFM, m³/h, L/s), and temperature/dew point (°C, °F, K), as well as electrical (V, A, Ω) and general units.
+
+The node only outputs when the payload or unit changes, reducing unnecessary messages. The last unit and payload are stored in context to maintain status across restarts. Use this node to label sensor data with appropriate units for downstream processing or display in HVAC and control systems.
+
+### Examples
+- Input: `msg.payload = 45.2`, unit set to `%RH`
+  - Output: `msg.payload = 45.2`, `msg.units = "%RH"`
+  - Status: `unit: %RH, value: 45.20`
+- Input: `msg.payload = 0.5`, unit set to `inH₂O`
+  - Output: `msg.payload = 0.5`, `msg.units = "inH₂O"`
+  - Status: `unit: inH₂O, value: 0.50`
+- Input: `msg.payload = 1200`, unit set to `CFM`
+  - Output: `msg.payload = 1200`, `msg.units = "CFM"`
+  - Status: `unit: CFM, value: 1200.00`
+- Input: `msg.payload = 15.3`, unit set to `°F`
+  - Output: `msg.payload = 15.3`, `msg.units = "°F"`
+  - Status: `unit: °F, value: 15.30`
+
+### Error Handling
+- Missing message: Shows `missing message` (red).
+- Processing errors: Shows `processing error` (red).
+- Invalid configuration (e.g., invalid unit): Shows `invalid unit` (red).
+
+Status shows:
+- Blue dot for new output (`unit: X, value: Y`).
+- Blue ring for unchanged output (`unit: X, value: Y`).
+- Red ring for errors (`missing message`, `invalid unit`).
+
+### References
+- [Node-RED Documentation](https://nodered.org/docs/) - official Node-RED documentation
+- [GitHub Repository](https://github.com/your-repo/node-red-contrib-buildingblocks-control) - source code and additional help
+</script>
