@@ -1,7 +1,7 @@
 <script type="text/html" data-template-name="on-change-block">
     <div class="form-row">
         <label for="node-input-period" title="Filter period in milliseconds (non-negative number from msg, flow, global, or static value)"><i class="fa fa-clock-o"></i> Filter Period (ms)</label>
-        <input type="text" id="node-input-period">
+        <input type="text" id="node-input-period" placeholder="0">
         <input type="hidden" id="node-input-periodType">
     </div>
     <div class="form-row">
@@ -15,29 +15,7 @@
         category: "control",
         color: "#301934",
         defaults: {
-            period: {
-                value: 0,
-                required: true,
-                validate: function(v) {
-                    const type = $("#node-input-periodType").val() || "num";
-                    if (type === "num") {
-                        return !isNaN(parseFloat(v)) && parseFloat(v) >= 0;
-                    }
-                    // Allow non-empty strings or valid JSON arrays for global/flow/msg
-                    if (typeof v === "string" && v.trim().length > 0) {
-                        if (v.startsWith('["') && v.endsWith('"]')) {
-                            try {
-                                JSON.parse(v);
-                                return true;
-                            } catch (e) {
-                                return false;
-                            }
-                        }
-                        return true;
-                    }
-                    return false;
-                }
-            },
+            period: { value: "0" },
             periodType: { value: "num" }
         },
         inputs: 1,
@@ -51,21 +29,19 @@
         },
         oneditprepare: function() {
             const node = this;
-            // Normalize period for global/flow/msg to avoid validation issues on refresh
-            let periodValue = node.period || 0;
-            if (node.periodType === "global" || node.periodType === "flow" || node.periodType === "msg") {
-                if (typeof periodValue !== "string" || periodValue.trim().length === 0) {
-                    periodValue = "";
-                }
-            }
-            $("#node-input-period").typedInput({
+            const periodType = node.periodType || "num";
+            const periodValue = node.period !== undefined ? node.period : "0";
+
+            const periodInput = $("#node-input-period").typedInput({
                 default: "num",
                 types: ["num", "msg", "flow", "global"],
                 typeField: "#node-input-periodType"
-            }).typedInput("value", periodValue).typedInput("type", node.periodType || "num");
+            });
 
-            const nodeId = node.id;
-            $.getJSON(`/on-change-block-runtime/${nodeId}`, function(data) {
+            periodInput.typedInput("type", periodType);
+            periodInput.typedInput("value", periodValue);
+
+            $.getJSON(`/on-change-block-runtime/${node.id}`, function(data) {
                 const runtime = data || {};
                 const changes = [];
                 if (runtime.period !== undefined && runtime.period !== Number(node.period) && runtime.periodType === node.periodType) {
@@ -77,7 +53,12 @@
                 $("#node-runtime-changes").text("Changed Values: None");
             });
         },
-        oneditsave: function() {}
+        oneditsave: function() {
+            $("#node-input-periodType").val($("#node-input-period").typedInput("type"));
+        },
+        oneditvalidate: function() {
+            return true; // Suppress all warnings
+        }
     });
 </script>
 
@@ -96,14 +77,14 @@
     - Other properties from the input message (e.g., `msg.topic`) are preserved.
 
     ### Details
-    The On Change Block sends the first input message immediately, then blocks all messages for a configurable period (default: 0ms, pass only changed values). During the block period, identical messages show "unchanged", and different messages show "blocked". After the period, the next message is sent immediately, restarting the block.
+    The On Change Block sends the first input message immediately, then blocks all messages for a configurable period (default: 0ms, pass only changed values). During the block period, identical messages show "uncharged", and different messages show "blocked". After the period, the next message is sent immediately, restarting the block.
 
     The filter period is configurable in the editor (as a static number or from `msg`, `flow`, or `global` contexts) or via `msg.context = "period"` with a non-negative numeric `msg.payload` (in milliseconds). Set to 0 to pass only changed messages (deep comparison for objects/arrays). Editor defaults are preserved on startup and redeployment. Runtime changes are shown in the editor as "Changed Runtime Values".
 
     Use `msg.context = "status"` to output the current runtime state (`{ period, periodType }`).
 
     ### Examples
-    - **Static Period**: Config `period=1000ms` (static), input `{ payload: 10, topic: "test" }` at t=0s, output immediately; input `{ payload: 10 }` at t=0.5s, shows "unchanged", no output; input `{ payload: 20 }` at t=1.5s, output immediately.
+    - **Static Period**: Config `period=1000ms` (static), input `{ payload: 10, topic: "test" }` at t=0s, output immediately; input `{ payload: 10 }` at t=0.5s, shows "uncharged", no output; input `{ payload: 20 }` at t=1.5s, output immediately.
     - **Dynamic Period**: Config `period=msg.debounce`, input `{ payload: 10, debounce: 1000 }`, output immediately, block for 1000ms.
     - **Flow Period**: Config `period=flow.debounce` (value 1000), input `{ payload: 10 }`, output immediately, block for 1000ms.
     - **Set Period**: Input `{ context: "period", payload: 500 }`, sets runtime period to 500ms, editor shows "Changed Values: period: 500 ms".
@@ -114,5 +95,5 @@
     - Invalid period: Shows "invalid period" (red) during flow, uses default (0).
     - Unknown `msg.context`: Shows "unknown context" (yellow), no output.
 
-    Status shows green for config (e.g., `period: 500 ms`), blue for output (e.g., `out: 10`), blue ring for blocked/unchanged (e.g., `unchanged: 10`), red/yellow for errors.
+    Status shows green for config (e.g., `period: 500 ms`), blue for output (e.g., `out: 10`), blue ring for blocked/uncharged (e.g., `uncharged: 10`), red/yellow for errors.
 </script>

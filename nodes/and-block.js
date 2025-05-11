@@ -39,7 +39,7 @@ module.exports = function(RED) {
                     node.status({
                         fill: "blue",
                         shape: "dot",
-                        text: `slots: ${node.slots}, out: ${msg.payload}`
+                        text: `out: ${msg.payload}, in: [${inputs.join(", ")}]`
                     });
                     send(msg);
                     if (done) done();
