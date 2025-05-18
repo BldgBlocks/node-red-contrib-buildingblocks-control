@@ -4,104 +4,79 @@ module.exports = function(RED) {
         const node = this;
         const context = this.context();
 
-        // Initialize runtime for editor display
+        // Initialize runtime state
         node.runtime = {
-            name: config.name || ""
+            name: config.name || "",
+            state: context.get("state") !== undefined ? context.get("state") : false
         };
 
-        // Initialize persistent state
-        node.state = context.get("state") !== undefined ? context.get("state") : false;
-        node.inTrue = context.get("inTrue") !== undefined ? context.get("inTrue") : null;
-        node.inFalse = context.get("inFalse") !== undefined ? context.get("inFalse") : null;
-        context.set("state", node.state);
-        context.set("inTrue", node.inTrue);
-        context.set("inFalse", node.inFalse);
+        // Persist initial state
+        context.set("state", node.runtime.state);
 
         // Set initial status
-        const activeSlot = node.state ? "inTrue" : "inFalse";
-        const initialOutput = node.state ? node.inTrue : node.inFalse;
         node.status({
             fill: "green",
             shape: "dot",
-            text: `switch: ${activeSlot}, out: ${initialOutput === null ? "null" : initialOutput}`
+            text: `state: ${node.runtime.state}, out: ${node.runtime.state ? "true" : "false"}`
         });
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
 
-            // Require msg.context
-            if (!msg.hasOwnProperty("context")) {
-                node.status({
-                    fill: "red",
-                    shape: "ring",
-                    text: "missing context"
-                });
+            // Guard against invalid message
+            if (!msg) {
+                node.status({ fill: "red", shape: "ring", text: "invalid message" });
+                if (done) done();
+                return;
+            }
+
+            // Validate context
+            if (!msg.hasOwnProperty("context") || typeof msg.context !== "string") {
+                node.status({ fill: "red", shape: "ring", text: "missing or invalid context" });
                 if (done) done();
                 return;
             }
 
             // Handle context commands
             if (msg.context === "toggle" || msg.context === "switch") {
-                node.state = !node.state;
-                context.set("state", node.state);
-                const newActiveSlot = node.state ? "inTrue" : "inFalse";
-                const output = node.state ? node.inTrue : node.inFalse;
+                node.runtime.state = !node.runtime.state;
+                context.set("state", node.runtime.state);
                 node.status({
                     fill: "blue",
                     shape: "dot",
-                    text: `switch: ${newActiveSlot}, out: ${output === null ? "null" : output}`
+                    text: `state: ${node.runtime.state}, out: ${node.runtime.state ? "true" : "false"}`
                 });
-                send({ payload: output });
+                // Send to outControl (third output)
+                send([null, null, { payload: node.runtime.state }]);
                 if (done) done();
                 return;
-            } else if (msg.context === "inTrue" || msg.context === "inFalse") {
-                if (!msg.hasOwnProperty("payload")) {
+            } else if (msg.context === "inTrue") {
+                if (node.runtime.state) {
                     node.status({
-                        fill: "red",
-                        shape: "ring",
-                        text: `missing payload for ${msg.context}`
+                        fill: "blue",
+                        shape: "dot",
+                        text: `state: true, out: true`
                     });
-                    if (done) done();
-                    return;
+                    // Send to outTrue (first output)
+                    send([msg, null, null]);
                 }
-                const payloadDisplay = msg.payload === null ? "null" : msg.payload;
-                if (msg.context === "inTrue" && node.state) {
-                    node.inTrue = msg.payload;
-                    context.set("inTrue", node.inTrue);
+                if (done) done();
+                return;
+            } else if (msg.context === "inFalse") {
+                if (!node.runtime.state) {
                     node.status({
                         fill: "blue",
                         shape: "dot",
-                        text: `switch: inTrue, out: ${payloadDisplay}`
+                        text: `state: false, out: false`
                     });
-                    send({ payload: node.inTrue });
-                } else if (msg.context === "inFalse" && !node.state) {
-                    node.inFalse = msg.payload;
-                    context.set("inFalse", node.inFalse);
-                    node.status({
-                        fill: "blue",
-                        shape: "dot",
-                        text: `switch: inFalse, out: ${payloadDisplay}`
-                    });
-                    send({ payload: node.inFalse });
-                } else {
-                    // Update inactive slot silently
-                    if (msg.context === "inTrue") {
-                        node.inTrue = msg.payload;
-                        context.set("inTrue", node.inTrue);
-                    } else {
-                        node.inFalse = msg.payload;
-                        context.set("inFalse", node.inFalse);
-                    }
+                    // Send to outFalse (second output)
+                    send([null, msg, null]);
                 }
                 if (done) done();
                 return;
             } else {
-                node.status({
-                    fill: "yellow",
-                    shape: "ring",
-                    text: "unknown context"
-                });
-                if (done) done();
+                node.status({ fill: "yellow", shape: "ring", text: "unknown context" });
+                if (done) done("Unknown context");
                 return;
             }
         });
@@ -115,16 +90,14 @@ module.exports = function(RED) {
         RED.httpAdmin.post("/boolean-switch-block/:id/toggle", RED.auth.needsPermission("boolean-switch-block.write"), function(req, res) {
             const node = RED.nodes.getNode(req.params.id);
             if (node && node.type === "boolean-switch-block") {
-                node.state = !node.state;
-                context.set("state", node.state);
-                const activeSlot = node.state ? "inTrue" : "inFalse";
-                const output = node.state ? node.inTrue : node.inFalse;
+                node.runtime.state = !node.runtime.state;
+                context.set("state", node.runtime.state);
                 node.status({
                     fill: "blue",
                     shape: "dot",
-                    text: `switch: ${activeSlot}, out: ${output === null ? "null" : output}`
+                    text: `state: ${node.runtime.state}, out: ${node.runtime.state ? "true" : "false"}`
                 });
-                node.send({ payload: output });
+                node.send([null, null, { payload: node.runtime.state }]);
                 res.sendStatus(200);
             } else {
                 res.sendStatus(404);
@@ -140,7 +113,7 @@ module.exports = function(RED) {
         if (node && node.type === "boolean-switch-block") {
             res.json({
                 name: node.runtime.name,
-                state: node.state
+                state: node.runtime.state
             });
         } else {
             res.status(404).json({ error: "Node not found" });

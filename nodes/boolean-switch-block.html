@@ -23,9 +23,9 @@
             name: { value: "" }
         },
         inputs: 1,
-        outputs: 1,
+        outputs: 3,
         inputLabels: ["control"],
-        outputLabels: ["slot value"],
+        outputLabels: ["outTrue", "outFalse", "outControl"],
         icon: "font-awesome/fa-toggle-on",
         paletteLabel: "boolean switch",
         label: function() {
@@ -33,44 +33,34 @@
         },
         oneditprepare: function() {
             const node = this;
-            const id = this.id;
-
-            // Initialize inputs
             $("#node-input-name").val(node.name || "");
 
-            // Fetch runtime changes
-            $.getJSON(`/boolean-switch-block-runtime/${id}`, function(data) {
-                const runtime = data || {};
+            $.getJSON(`/boolean-switch-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
                 const changes = [];
-                if (runtime.state !== undefined && runtime.state !== false) {
-                    changes.push(`state: ${runtime.state}`);
+                if (data.name) changes.push(`name: ${data.name}`);
+                if (data.state !== undefined && data.state !== false) {
+                    changes.push(`state: ${data.state}`);
                 }
-                const displayText = changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None";
-                $("#node-runtime-changes").text(displayText);
-            }).fail(function(jqXHR, textStatus, errorThrown) {
-                $("#node-runtime-changes").text("Changed Values: Unknown (failed to fetch runtime)");
+                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
+            }).fail(function() {
+                $("#node-runtime-changes").text("Changed Values: Unknown");
             });
 
-            // Handle toggle button
             $("#node-toggle-button").click(function() {
                 $.ajax({
-                    url: `/boolean-switch-block/${id}/toggle`,
+                    url: `/boolean-switch-block/${this.id}/toggle`,
                     type: "POST",
                     success: function() {
-                        // Refresh runtime changes
-                        $.getJSON(`/boolean-switch-block-runtime/${id}`, function(data) {
-                            const runtime = data || {};
+                        $.getJSON(`/boolean-switch-block-runtime/${node.id}?t=${Date.now()}`, function(data) {
                             const changes = [];
-                            if (runtime.state !== undefined && runtime.state !== false) {
-                                changes.push(`state: ${runtime.state}`);
+                            if (data.name) changes.push(`name: ${data.name}`);
+                            if (data.state !== undefined && data.state !== false) {
+                                changes.push(`state: ${data.state}`);
                             }
-                            const displayText = changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None";
-                            $("#node-runtime-changes").text(displayText);
+                            $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
                         });
                     },
-                    error: function() {
-                        // Handle error silently
-                    }
+                    error: function() {}
                 });
             });
         },
@@ -78,35 +68,40 @@
             // Standard config properties are automatically saved
         },
         oneditvalidate: function() {
-            return true; // Suppress all warnings
+            return true;
         }
     });
 </script>
 
 <!-- Help Section -->
 <script type="text/markdown" data-help-name="boolean-switch-block">
-Toggles a boolean switch to gate output from two slots based on state.
+Routes input flows to one of three outputs based on a boolean switch state.
 
 ### Inputs
-: context (string) : Command (`"toggle"`, `"switch"`) or set slots (`"inTrue"`, `"inFalse"`).
-: payload (any) : Value for slot when `msg.context` is `"inTrue"` or `"inFalse"`.
+: context (string) : Command (`"toggle"`, `"switch"`, `"inTrue"`, `"inFalse"`).
+: payload (any) : Flow data for `"inTrue"` or `"inFalse"`; ignored for `"toggle"`, `"switch"`.
 
 ### Outputs
-: payload (any) : Value of `inTrue` (switch `true`) or `inFalse` (switch `false`).
+: outTrue (msg) : Receives `msg` with `context: "inTrue"` when switch is `true`.
+: outFalse (msg) : Receives `msg` with `context: "inFalse"` when switch is `false`.
+: outControl (msg) : `{ payload: boolean }` with switch state on toggle.
+
+### Properties
+: name (string) : Display name in editor. Default: "" (shows "boolean switch").
 
 ### Details
-Maintains a boolean switch (`true` or `false`) and two slots (`inTrue`, `inFalse`) holding values. Outputs `inTrue` when switch is `true`, `inFalse` when `false`, triggered by state changes (`msg.context = "toggle"` or `"switch"`, editor toggle button) or active slot updates (`msg.context = "inTrue"` or `"inFalse"` when slot matches switch state). Non-active slot updates (e.g., `inFalse` when `true`) store values without output or status change. Switch state and slots are stored persistently in node context, surviving redeployments. Configurable via editor (`name`, toggle state). Runtime values (`name`, `state`, `inTrue`, `inFalse`) are shown in "Changed Runtime Values" if non-default (e.g., `state ≠ false`, `inTrue ≠ null`).
+Routes input messages to one of three outputs based on a boolean switch state (`true` or `false`). Messages with `msg.context = "inTrue"` are sent to `outTrue` when `state = true`, and messages with `msg.context = "inFalse"` are sent to `outFalse` when `state = false`. Toggling the switch (`msg.context = "toggle"` or `"switch"`, or editor toggle button) sends `{ payload: state }` to `outControl`. The switch state is stored persistently in node context, surviving redeployments. Configurable via editor (`name`, toggle state). Runtime values (`name`, `state`) are shown in "Changed Runtime Values" if non-default (`name ≠ ""`, `state ≠ false`).
 
 ### Error Handling
-- Missing `msg.context`: No output, red status (`missing context`).
-- Missing `msg.payload` for slot update: No output, red status (`missing payload for X`).
-- Unknown `msg.context` (not `"toggle"`, `"switch"`, `"inTrue"`, `"inFalse"`): No output, yellow status (`unknown context`).
+- Missing `msg`: No output, red status (`invalid message`).
+- Missing or invalid `msg.context` (non-string): No output, red status (`missing or invalid context`).
+- Unknown `msg.context` (not `"toggle"`, `"switch"`, `"inTrue"`, `"inFalse"`): No output, yellow status (`unknown context`), errors with message.
 
 ### Status
-- Green (dot): Configuration (e.g., `switch: inTrue` at startup).
-- Blue (dot): Outputs (e.g., `switch: inTrue, out: 47`).
-- Red (ring): Errors (e.g., `missing context`, `missing payload for inTrue`).
-- Yellow (ring): Warnings (e.g., `unknown context`).
+- Green (dot): Initial state (e.g., `state: true, out: true`).
+- Blue (dot): Output sent (e.g., `state: true, out: true`).
+- Red (ring): Errors (e.g., `missing or invalid context`).
+- Yellow (ring): Unknown context (e.g., `unknown context`).
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)
