@@ -73,15 +73,16 @@
 
 <!-- Help Section -->
 <script type="text/markdown" data-help-name="on-change-block">
-Passes the input message immediately, then blocks messages for a specified period.
+Filters redundant messages based on value changes and a configurable period.
 
 ### Inputs
-: context (string) : Configures period (`"period"`) or queries state (`"status"`). Unmatched values trigger error.
-: payload (any) : Input value to compare, or non-negative number for period config.
+: payload (any) : Input value to compare.
+: context (string, optional) : Configures period (`"period"`) or queries state (`"status"`).
+: payload (number | any, for `context`) : Non-negative number for `"period"` (ms), any for `"status"`.
 
 ### Outputs
-: payload (any) : Input payload if not blocked; for `msg.context = "status"`, `{ period, periodType }`.
-: Other input message properties (e.g., `msg.topic`) are preserved, except for `msg.context = "status"`.
+: msg : Input message if value changed and not filtered.
+: payload (object, for `msg.context = "status"`) : `{ period, periodType }`.
 
 ### Properties
 : name (string) : Display name in editor. Default: "" (shows "on change").
@@ -89,20 +90,22 @@ Passes the input message immediately, then blocks messages for a specified perio
 : periodType (string) : Source of period (`"num"`, `"msg"`, `"flow"`, `"global"`). Default: `"num"`.
 
 ### Details
-Sends the first input message immediately, then blocks messages for `period` milliseconds (default: 0, pass only changed values). During block, identical messages (deep comparison) show "unchanged" status, different messages show "blocked", with no output. After period, the next message is sent immediately, restarting the block. Period configurable via editor (static or `msg`, `flow`, `global`) or `msg.context = "period"` with non-negative numeric `msg.payload` (milliseconds). Set `period = 0` to pass only changed values (deep comparison for objects/arrays). `msg.context = "status"` outputs `{ period, periodType }`. Editor changes require redeployment; message-based period updates apply immediately. Runtime values (`name`, `period`) shown in "Changed Runtime Values" if different from defaults.
+Filters messages based on value changes (deep comparison) and a filter period. When `period = 0`, outputs the input message only if `msg.payload` differs from the last output value. When `period > 0`, outputs the first message, suppresses all messages during the period (including blips), and after the period, outputs only if the value differs from the last output. Supports complex payloads (objects, arrays) via deep comparison. Configuration:
+- `msg.context = "period"`: Sets period (ms), no output.
+- `msg.context = "status"`: Outputs `{ period, periodType }`.
+Unknown `msg.context` is ignored, processing `msg.payload`. Editor changes require redeployment; message-based period updates apply immediately. Runtime values (`name`, `period`) shown in "Changed Runtime Values" if different from defaults. Used in control systems to debounce or filter redundant sensor data.
 
 ### Error Handling
 - Missing `msg`: No output, red status (`invalid message`).
-- Missing `msg.payload`: No output, red status (`missing payload`).
-- Invalid period (non-numeric, negative): Red status (`invalid period`), uses default (0).
-- Unknown `msg.context`: No output, yellow status (`unknown context`), errors with message.
+- Missing `msg.payload`: Message passed, red status (`missing payload`).
+- Invalid period (non-numeric, negative): Message passed, red status (`invalid period`), uses default (0).
+- Invalid `msg.context`: Ignored, message processed as passthrough.
 
 ### Status
-- Green (dot): Configuration (e.g., `period: 500 ms`).
-- Blue (dot): Output (e.g., `out: 10`).
-- Blue (ring): Blocked or unchanged (e.g., `blocked: 20`, `unchanged: 10`).
-- Red (ring): Errors (e.g., `missing payload`, `invalid period`).
-- Yellow (ring): Unknown context (e.g., `unknown context`).
+- Green (dot): Configuration (e.g., `name: on change, period: 500 ms`, `period: 1000 ms`).
+- Blue (dot): Output (e.g., `out: true`).
+- Blue (ring): Filtered or unchanged (e.g., `filtered: false`, `unchanged: true`).
+- Red (ring): Errors (e.g., `invalid message`, `invalid period`).
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

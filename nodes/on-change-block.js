@@ -9,13 +9,21 @@ module.exports = function(RED) {
             period: Number(config.period) || 0,
             periodType: config.periodType || "num",
             lastValue: null,
-            blockTimer: null
+            periodValue: null,
+            blockTimer: null,
+            pendingMsg: null
         };
 
         // Validate initial config
         if (isNaN(node.runtime.period) || node.runtime.period < 0) {
             node.runtime.period = 0;
-            node.status({ fill: "red", shape: "ring", text: "invalid period" });
+            node.status({ fill: "red", shape: "ring", text: "invalid period, using 0" });
+        } else {
+            node.status({
+                fill: "green",
+                shape: "dot",
+                text: `name: ${node.runtime.name || "on change"}, period: ${node.runtime.period.toFixed(0)} ms`
+            });
         }
 
         node.on("input", function(msg, send, done) {
@@ -29,8 +37,8 @@ module.exports = function(RED) {
             }
 
             // Handle context updates
-            if (msg.hasOwnProperty("context")) {
-                const contextLower = (msg.context || "").toLowerCase();
+            if (msg.hasOwnProperty("context") && typeof msg.context === "string") {
+                const contextLower = msg.context.toLowerCase();
                 if (contextLower === "period") {
                     if (!msg.hasOwnProperty("payload")) {
                         node.status({ fill: "red", shape: "ring", text: "missing payload for period" });
@@ -50,23 +58,26 @@ module.exports = function(RED) {
                         shape: "dot",
                         text: `period: ${node.runtime.period.toFixed(0)} ms`
                     });
-                } else if (contextLower === "status") {
-                    send({ payload: {
-                        period: node.runtime.period,
-                        periodType: node.runtime.periodType
-                    } });
-                } else {
-                    node.status({ fill: "yellow", shape: "ring", text: "unknown context" });
-                    if (done) done("Unknown context");
+                    if (done) done();
                     return;
                 }
-                if (done) done();
-                return;
+                if (contextLower === "status") {
+                    send({
+                        payload: {
+                            period: node.runtime.period,
+                            periodType: node.runtime.periodType
+                        }
+                    });
+                    if (done) done();
+                    return;
+                }
+                // Ignore unknown context
             }
 
             // Validate input payload
             if (!msg.hasOwnProperty("payload")) {
                 node.status({ fill: "red", shape: "ring", text: "missing payload" });
+                send(msg);
                 if (done) done();
                 return;
             }
@@ -85,6 +96,7 @@ module.exports = function(RED) {
                 }
             } catch (err) {
                 node.status({ fill: "red", shape: "ring", text: "invalid period" });
+                send(msg);
                 if (done) done();
                 return;
             }
@@ -108,42 +120,57 @@ module.exports = function(RED) {
                 return false;
             }
 
-            if (period > 0) {
-                if (node.runtime.blockTimer) {
-                    const statusText = isEqual(currentValue, node.runtime.lastValue)
-                        ? `unchanged: ${JSON.stringify(currentValue).slice(0, 20)}`
-                        : `blocked: ${JSON.stringify(currentValue).slice(0, 20)}`;
-                    node.status({
-                        fill: "blue",
-                        shape: "ring",
-                        text: statusText
-                    });
-                    if (done) done();
-                    return;
-                }
+            // Handle input during filter period
+            if (node.runtime.blockTimer) {
+                node.runtime.pendingMsg = RED.util.cloneMessage(msg);
                 node.status({
                     fill: "blue",
-                    shape: "dot",
-                    text: `out: ${JSON.stringify(currentValue).slice(0, 20)}`
+                    shape: "ring",
+                    text: `filtered: ${JSON.stringify(currentValue).slice(0, 20)}`
                 });
-                node.runtime.lastValue = RED.util.cloneMessage(currentValue);
-                send(msg);
-                node.runtime.blockTimer = setTimeout(() => {
-                    node.runtime.blockTimer = null;
-                    node.status({});
-                }, period);
                 if (done) done();
                 return;
             }
 
+            // Check if value changed
             if (!isEqual(currentValue, node.runtime.lastValue)) {
+                node.runtime.lastValue = RED.util.cloneMessage(currentValue);
+                node.runtime.periodValue = RED.util.cloneMessage(currentValue);
                 node.status({
                     fill: "blue",
                     shape: "dot",
                     text: `out: ${JSON.stringify(currentValue).slice(0, 20)}`
                 });
-                node.runtime.lastValue = RED.util.cloneMessage(currentValue);
                 send(msg);
+
+                // Start filter period if applicable
+                if (period > 0) {
+                    node.runtime.blockTimer = setTimeout(() => {
+                        node.runtime.blockTimer = null;
+                        if (node.runtime.pendingMsg) {
+                            const pendingValue = node.runtime.pendingMsg.payload;
+                            if (!isEqual(pendingValue, node.runtime.lastValue)) {
+                                node.runtime.lastValue = RED.util.cloneMessage(pendingValue);
+                                node.runtime.periodValue = RED.util.cloneMessage(pendingValue);
+                                node.status({
+                                    fill: "blue",
+                                    shape: "dot",
+                                    text: `out: ${JSON.stringify(pendingValue).slice(0, 20)}`
+                                });
+                                send(node.runtime.pendingMsg);
+                            } else {
+                                node.status({
+                                    fill: "blue",
+                                    shape: "ring",
+                                    text: `unchanged: ${JSON.stringify(pendingValue).slice(0, 20)}`
+                                });
+                            }
+                            node.runtime.pendingMsg = null;
+                        } else {
+                            node.status({});
+                        }
+                    }, period);
+                }
             } else {
                 node.status({
                     fill: "blue",
@@ -161,6 +188,8 @@ module.exports = function(RED) {
                 node.runtime.blockTimer = null;
             }
             node.runtime.lastValue = null;
+            node.runtime.periodValue = null;
+            node.runtime.pendingMsg = null;
             node.runtime.period = Number(config.period) || 0;
             node.runtime.periodType = config.periodType || "num";
             node.status({});
@@ -174,6 +203,7 @@ module.exports = function(RED) {
         const node = RED.nodes.getNode(req.params.id);
         if (node && node.type === "on-change-block") {
             res.json({
+                name: node.runtime.name,
                 period: node.runtime.period,
                 periodType: node.runtime.periodType
             });

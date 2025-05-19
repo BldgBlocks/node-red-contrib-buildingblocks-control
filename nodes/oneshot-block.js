@@ -42,18 +42,20 @@ module.exports = function(RED) {
             // Handle context updates
             if (msg.hasOwnProperty("context")) {
                 if (msg.context === "reset") {
-                    if (timer) {
+                    if(msg.payload === true) {
+                        if (timer) {
                         clearTimeout(timer);
                         timer = null;
+                        }
+                        node.runtime.locked = false;
+                        node.runtime.output = false;
+                        node.status({
+                            fill: "blue",
+                            shape: "dot",
+                            text: `triggers: ${node.runtime.triggerCount}, reset`
+                        });
+                        send({ payload: false });
                     }
-                    node.runtime.locked = false;
-                    node.runtime.output = false;
-                    node.status({
-                        fill: "blue",
-                        shape: "dot",
-                        text: `triggers: ${node.runtime.triggerCount}, reset`
-                    });
-                    send({ payload: false });
                     if (done) done();
                     return;
                 } else {

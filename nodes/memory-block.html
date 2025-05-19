@@ -1,6 +1,7 @@
+<!-- UI Template Section -->
 <script type="text/html" data-template-name="memory-block">
     <div class="form-row">
-        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
@@ -14,6 +15,7 @@
     </div>
 </script>
 
+<!-- JavaScript Section -->
 <script type="text/javascript">
     RED.nodes.registerType("memory-block", {
         category: "control",
@@ -24,10 +26,10 @@
             writePeriodType: { value: "num" }
         },
         inputs: 1,
-        outputs: 1,
+        outputs: 2,
         inputLabels: ["input"],
-        outputLabels: ["output"],
-        icon: "font-awesome/fa-wrench",
+        outputLabels: ["query", "value"],
+        icon: "font-awesome/fa-database",
         paletteLabel: "memory",
         label: function() {
             return this.name || "memory";
@@ -35,7 +37,9 @@
         oneditprepare: function() {
             const node = this;
             const writePeriodType = node.writePeriodType || "num";
-            const writePeriodValue = node.writePeriod !== undefined ? node.writePeriod : "60000";
+            const writePeriodValue = node.writePeriod || "60000";
+
+            $("#node-input-name").val(node.name || "");
 
             const periodInput = $("#node-input-writePeriod").typedInput({
                 default: "num",
@@ -46,74 +50,75 @@
             periodInput.typedInput("type", writePeriodType);
             periodInput.typedInput("value", writePeriodValue);
 
-            // Workaround to suppress typedInput warnings
-            periodInput.on("change", function() {
-                setTimeout(() => {
-                    periodInput.typedInput("validate");
-                    periodInput.removeClass("input-error");
-                }, 0);
-            });
-
-            // Fetch runtime changes
-            $.getJSON(`/memory-block-runtime/${node.id}`, function(data) {
-                const runtime = data || {};
+            $.getJSON(`/memory-block-runtime/${node.id}?t=${Date.now()}`, function(data) {
                 const changes = [];
-                if (runtime.writePeriod !== undefined && runtime.writePeriod !== Number(node.writePeriod) && runtime.writePeriodType === node.writePeriodType) {
-                    changes.push(`writePeriod: ${runtime.writePeriod.toFixed(0)} ms`);
+                if (data.name) changes.push(`name: ${data.name}`);
+                if (data.writePeriod !== undefined && data.writePeriodType === "num" && Number(data.writePeriod) !== Number(node.writePeriod || 60000)) {
+                    changes.push(`writePeriod: ${Number(data.writePeriod).toFixed(0)} ms`);
                 }
-                if (runtime.storedMsg !== undefined) {
-                    changes.push(`stored: ${JSON.stringify(runtime.storedMsg.payload)}`);
+                if (data.storedMsg && data.storedMsg.payload != null) {
+                    const payloadStr = String(data.storedMsg.payload).substring(0, 20);
+                    changes.push(`stored: ${payloadStr}`);
                 }
-                const displayText = changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None";
-                $("#node-runtime-changes").text(displayText);
+                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
             }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: None");
+                $("#node-runtime-changes").text("Changed Values: Unknown");
             });
         },
         oneditsave: function() {
             $("#node-input-writePeriodType").val($("#node-input-writePeriod").typedInput("type"));
         },
         oneditvalidate: function() {
-            return true; // Suppress all warnings
+            const writePeriod = $("#node-input-writePeriod").typedInput("value");
+            const writePeriodType = $("#node-input-writePeriod").typedInput("type");
+            if (writePeriodType === "num") {
+                const value = parseFloat(writePeriod);
+                return !isNaN(value) && isFinite(value) && value >= 0;
+            }
+            return true;
         }
     });
 </script>
 
+<!-- Help Section -->
 <script type="text/markdown" data-help-name="memory-block">
-    Stores a message persistently across reboots and re-deployments, with delayed file writes.
+Stores a message persistently across reboots and redeployments, with delayed file writes.
 
-    ### Inputs
-    - **context** <span class="property-type">string</span>
-      Specifies the action: "update" to store the message, "execute" to output the stored message.
-    - **payload** <span class="property-type">any</span>
-      The value to store (for "update") or pass through (no context).
+### Inputs
+: context (string) : Action (`"update"` to store message, `"execute"` to output stored message, `"query"` to check stored value existence).
+: payload (any) : Value to store (`"update"`) or pass through (no `context`).
 
-    ### Outputs
-    - **payload** <span class="property-type">any</span>
-      For "execute": the stored message. For no context: the input message unchanged.
-    - Other properties from the input message (e.g., `msg.topic`) are preserved.
+### Outputs
+: Output 1 (query) : For `context = "query"`: `{ payload: boolean }` (`true` if stored value exists, `false` if none).
+: Output 2 (value) : For no `context`: Input `msg` unchanged. For `context = "execute"`: Stored `msg` or `{ payload: null }` if none. For `context = "update"`: No output.
 
-    ### Details
-    The Memory Block acts as a persistent cache, storing a single message across Node-RED reboots and re-deployments. It uses a file to ensure persistence, with writes delayed to minimize file I/O.
+### Properties
+: name (string) : Display name in editor. Default: "" (shows "memory").
+: writePeriod (string) : Delay in milliseconds before writing to file (non-negative, from `msg`, `flow`, `global`, or static). Default: "60000".
+: writePeriodType (string) : Source of `writePeriod` (`"num"`, `"msg"`, `"flow"`, `"global"`). Default: `"num"`.
 
-    - **msg.context = "update"**: Stores the input `msg`, schedules a file write after the configured `writePeriod` (default 60000ms). Only the last update within the period is written. No output.
-    - **msg.context = "execute"**: Outputs the stored message, if any. No file write.
-    - **No msg.context**: Passes the input `msg` unchanged, without modifying the stored message or file.
+### Details
+Stores a single message persistently in a JSON file, surviving Node-RED reboots and redeployments. Uses delayed file writes to minimize I/O. Actions:
+- `msg.context = "update"`: Stores `msg`, schedules file write after `writePeriod` (ms, default 60000). Only the last update within the period is written. No output.
+- `msg.context = "execute"`: Outputs stored `msg` to Output 2 if available, or `{ payload: null }` if none. No file write.
+- `msg.context = "query"`: Outputs `{ payload: true }` to Output 1 if a stored value exists, `{ payload: false }` if none. No file write or Output 2 message.
+- No `msg.context`: Passes input `msg` unchanged to Output 2, no effect on stored `msg` or file.
+Configurable via editor (`name`, `writePeriod`). `writePeriod` resolved dynamically, defaults to 60000ms if invalid. Runtime values (`name`, `writePeriod`, `storedMsg.payload`) shown in "Changed Runtime Values" if non-default.
 
-    The `writePeriod` can be set in the editor as a static number or from `msg`, `flow`, or `global` contexts. Invalid periods default to 60000ms. Runtime changes to `writePeriod` and the stored message are shown in the editor as "Changed Runtime Values".
+### Error Handling
+- Missing `msg`: No output, red status (`invalid message`).
+- Missing `msg.payload` for `"update"`: No output, red status (`missing payload`).
+- Invalid `msg.context` (non-string, not `"update"`, `"execute"`, `"query"`): No output, yellow status (`unknown context`), errors with message.
+- Invalid `writePeriod` (non-numeric, non-finite, negative): Red status (`invalid write period`), defaults to 60000ms.
+- File I/O errors: Red status (`file error`), continues in-memory operation.
 
-    ### Examples
-    - Input: `{ context: "update", payload: 42 }` → No output, stores `{ payload: 42 }`, Status: `updated: 42`.
-    - Input: `{ context: "execute" }` → Output: `{ payload: 42 }`, Status: `out: 42`.
-    - Input: `{ payload: "test" }` → Output: `{ payload: "test" }`, Status: `pass: test`.
-    - Input: `{ context: "update" }` → No output, Status: `missing payload`.
-    - Input: `{ context: "invalid" }` → No output, Status: `unknown context`.
+### Status
+- Green (dot): Load or update (e.g., `loaded: 42`, `updated: 42`).
+- Blue (dot): Pass-through, execute, or query (e.g., `in: test, out2: test`, `in: execute, out2: 42`, `in: query, out1: true`).
+- Red (ring): Errors (e.g., `missing payload`, `invalid write period`, `file error`).
+- Yellow (ring): Unknown context (e.g., `unknown context`).
 
-    ### Error Handling
-    - Missing `msg.payload` for "update": Shows "missing payload" (red), no update or output.
-    - Invalid `msg.context`: Shows "unknown context" (yellow), no output.
-    - Invalid `writePeriod`: Shows "invalid write period" (red), defaults to 60000ms.
-    - File I/O errors: Shows "file error" (red), continues in-memory operation.
-
-    Status shows green for updates (e.g., `updated: 42`), blue for output or pass-through (e.g., `out: 42`, `pass: test`), red/yellow for errors.
+### References
+- [Node-RED Documentation](https://nodered.org/docs/)
+- [GitHub Repository](https://github.com/your-repo/node-red-contrib-buildingblocks-control)
 </script>

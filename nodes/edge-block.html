@@ -1,0 +1,103 @@
+<!-- UI Template Section -->
+<script type="text/html" data-template-name="edge-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-algorithm" title="Transition to detect (true-to-false or false-to-true)"><i class="fa fa-exchange"></i> Algorithm</label>
+        <select id="node-input-algorithm">
+            <option value="true-to-false">True to False</option>
+            <option value="false-to-true">False to True</option>
+        </select>
+    </div>
+    <div class="form-row">
+        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
+        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
+    </div>
+</script>
+
+<!-- JavaScript Section -->
+<script type="text/javascript">
+    RED.nodes.registerType("edge-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "" },
+            algorithm: { value: "true-to-false", required: true }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["transition"],
+        icon: "font-awesome/fa-exchange",
+        paletteLabel: "edge",
+        label: function() {
+            return this.name || "edge";
+        },
+        oneditprepare: function() {
+            const node = this;
+            $("#node-input-name").val(node.name || "");
+            $("#node-input-algorithm").val(node.algorithm || "true-to-false");
+
+            $.getJSON(`/edge-block-runtime/${node.id}?t=${Date.now()}`, function(data) {
+                const changes = [];
+                if (data.name) changes.push(`name: ${data.name}`);
+                if (data.algorithm && data.algorithm !== node.algorithm) {
+                    changes.push(`algorithm: ${data.algorithm}`);
+                }
+                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
+            }).fail(function() {
+                $("#node-runtime-changes").text("Changed Values: Unknown");
+            });
+        },
+        oneditsave: function() {
+            // Standard config properties are automatically saved
+        },
+        oneditvalidate: function() {
+            const algorithm = $("#node-input-algorithm").val();
+            return ["true-to-false", "false-to-true"].includes(algorithm);
+        }
+    });
+</script>
+
+<!-- Help Section -->
+<script type="text/markdown" data-help-name="edge-block">
+Detects configured boolean transitions (true-to-false or false-to-true) in `msg.payload`.
+
+### Inputs
+: payload (boolean) : Boolean to monitor for transitions.
+: context (string, optional) : Action (`"algorithm"` to set transition type, `"reset"` to clear state).
+: payload (string | boolean, for `context`) : Transition type (`"true-to-false"`, `"false-to-true"`) for `"algorithm"`, true for `"reset"`.
+
+### Outputs
+: payload (boolean) : `true` when the specified transition occurs (true-to-false or false-to-true).
+
+### Properties
+: name (string) : Display name in editor. Default: "" (shows "edge").
+: algorithm (string) : Transition to detect (`"true-to-false"`, `"false-to-true"`). Default: `"true-to-false"`.
+
+### Details
+Detects transitions in `msg.payload` (boolean) based on the configured `algorithm`. Outputs `{ payload: true }` only when the specified transition occurs (true-to-false or false-to-true). No output on first input after reset, if no transition occurs, or for non-boolean inputs. Configuration via `msg.context`:
+- `"algorithm"`: Sets transition type, no output.
+- `"reset"`: Clears state, no output.
+Unknown `msg.context` is ignored, processing `msg.payload`. Used in control systems for detecting state changes, such as button toggles or sensor switches. Runtime changes to `algorithm` are shown in "Changed Runtime Values".
+
+### Error Handling
+- Missing `msg`: No output, red status (`invalid message`).
+- Missing `msg.payload`: No output, red status (`missing payload`).
+- Invalid `msg.payload` for `"algorithm"` (not `"true-to-false"`, `"false-to-true"`): No output, red status (`invalid algorithm`).
+- Invalid `msg.payload` for `"reset"` (non-boolean): No output, red status (`invalid reset`).
+- Invalid `msg.payload` for transition (non-boolean): No output, red status (`invalid input`).
+- Invalid `msg.context`: Ignored, message processed for transitions.
+
+### Status
+- Green (dot): Initialization, reset, or algorithm update (e.g., `name: edge`, `state reset`, `algorithm: true-to-false`).
+- Blue (dot): Transition detected (e.g., `in: false, out: true`).
+- Blue (ring): No transition or non-boolean input (e.g., `in: true, out: none`).
+- Red (ring): Errors (e.g., `invalid message`, `invalid input`, `invalid algorithm`).
+
+### References
+- [Node-RED Documentation](https://nodered.org/docs/)
+- [GitHub Repository](https://github.com/your-repo/node-red-contrib-buildingblocks-control)
+</script>

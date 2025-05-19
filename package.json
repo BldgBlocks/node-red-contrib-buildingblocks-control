@@ -48,7 +48,10 @@
       "debounce-block": "nodes/debounce-block.js",
       "on-change-block": "nodes/on-change-block.js",
       "boolean-to-number-block": "nodes/boolean-to-number-block.js",
-      "memory-block": "nodes/memory-block.js"
+      "memory-block": "nodes/memory-block.js",
+      "round-block": "nodes/round-block.js",
+      "modulo-block": "nodes/modulo-block.js",
+      "edge-block": "nodes/edge-block.js"
     }
   },
   "author": "buildingblocks",
