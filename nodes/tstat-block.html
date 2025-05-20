@@ -190,7 +190,7 @@ Thermostat controller for heating/cooling with single or split setpoint operatio
 : payload (number | boolean | string) : Number for temperature or config values, boolean for `isHeating`, string for `algorithm` (`"single"`, `"split"`).
 
 ### Outputs
-: isHeating (boolean) : `true` for heating mode, `false` for cooling mode.
+: isHeating (boolean) : `true` for heating mode, `false` for cooling mode. 'msg.context' === '"isHeating"' is attached.
 : above (boolean) : `true` if input exceeds upper threshold (single: `setpoint + diff/2`, split: `coolingSetpoint + diff/2` for cooling).
 : below (boolean) : `true` if input is below lower threshold (single: `setpoint - diff/2`, split: `heatingSetpoint - diff/2` for heating).
 

@@ -113,7 +113,35 @@ module.exports = function(RED) {
                     output[1] = node.runtime.storedMsg;
                 } else {
                     node.status({ fill: "blue", shape: "dot", text: `in: execute, out2: null` });
-                    output[1] = { payload: null }; // Option 2: Output null to Output 2
+                    output[1] = { payload: null };
+                }
+                send(output);
+                if (done) done();
+                return;
+            }
+
+            if (msg.context === "executeWithFallback") {
+                if (node.runtime.storedMsg !== null) {
+                    const payloadStr = node.runtime.storedMsg.payload != null ? String(node.runtime.storedMsg.payload).substring(0, 20) : "null";
+                    node.status({ fill: "blue", shape: "dot", text: `in: executeWithFallback, out2: ${payloadStr}` });
+                    output[1] = node.runtime.storedMsg;
+                } else {
+                    if (!msg.hasOwnProperty("payload")) {
+                        node.status({ fill: "red", shape: "ring", text: "missing payload" });
+                        if (done) done();
+                        return;
+                    }
+                    node.runtime.storedMsg = { payload: msg.payload };
+                    lastUpdateMsg = node.runtime.storedMsg;
+                    const payloadStr = msg.payload != null ? String(msg.payload).substring(0, 20) : "null";
+                    node.status({ fill: "blue", shape: "dot", text: `in: executeWithFallback, out2: ${payloadStr}` });
+                    output[1] = { payload: msg.payload };
+                    if (writeTimeout) clearTimeout(writeTimeout);
+                    writeTimeout = setTimeout(() => {
+                        saveMessage().catch(err => {
+                            node.error("Failed to save message: " + err.message);
+                        });
+                    }, writePeriod);
                 }
                 send(output);
                 if (done) done();
@@ -123,7 +151,7 @@ module.exports = function(RED) {
             if (msg.context === "query") {
                 const hasValue = node.runtime.storedMsg !== null;
                 node.status({ fill: "blue", shape: "dot", text: `in: query, out1: ${hasValue}` });
-                output[0] = { payload: hasValue }; // Option 3: Output true/false to Output 1
+                output[0] = { payload: hasValue };
                 send(output);
                 if (done) done();
                 return;

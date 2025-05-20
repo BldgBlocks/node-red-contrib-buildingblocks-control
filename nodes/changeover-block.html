@@ -51,6 +51,10 @@
         <input type="number" id="node-input-minCycleTime" placeholder="60" min="0" step="any">
     </div>
     <div class="form-row">
+        <label for="node-input-initWindow" title="Time window after startup to lock mode and suppress outputs (seconds, non-negative number)"><i class="fa fa-clock-o"></i> Init Window</label>
+        <input type="number" id="node-input-initWindow" placeholder="10" min="0" step="any">
+    </div>
+    <div class="form-row">
         <label for="node-input-enable" title="Enable changeover (true) or disable (false)"><i class="fa fa-power-off"></i> Enable</label>
         <input type="checkbox" id="node-input-enable" style="width: auto; vertical-align: middle;">
     </div>
@@ -89,7 +93,8 @@
             maxTempSetpoint: { value: 90 },
             minCycleTime: { value: 60 },
             enable: { value: true },
-            operationMode: { value: "auto" }
+            operationMode: { value: "auto" },
+            initWindow: { value: 10 }
         },
         inputs: 1,
         outputs: 2,
@@ -110,6 +115,7 @@
             $("#node-input-minTempSetpoint").val(node.minTempSetpoint || 55);
             $("#node-input-maxTempSetpoint").val(node.maxTempSetpoint || 90);
             $("#node-input-minCycleTime").val(node.minCycleTime || 60);
+            $("#node-input-initWindow").val(node.initWindow || 10);
             $("#node-input-enable").prop("checked", node.enable === true);
             $("#node-input-operationMode").val(node.operationMode || "auto");
 
@@ -218,6 +224,14 @@
                     $(this).removeClass("input-error");
                 }
             });
+            $("#node-input-initWindow").on("input", function() {
+                const val = parseFloat($(this).val());
+                if (isNaN(val) || val < 0) {
+                    $(this).addClass("input-error");
+                } else {
+                    $(this).removeClass("input-error");
+                }
+            });
 
             // Fetch runtime changes
             $.getJSON(`/changeover-block-runtime/${node.id}`, function(data) {
@@ -262,6 +276,9 @@
                 if (runtime.minCycleTime !== undefined && runtime.minCycleTime !== node.minCycleTime) {
                     changes.push(`minCycleTime: ${runtime.minCycleTime.toFixed(0)} s`);
                 }
+                if (runtime.initWindow !== undefined && runtime.initWindow !== node.initWindow) {
+                    changes.push(`initWindow: ${runtime.initWindow.toFixed(0)} s`);
+                }
                 if (runtime.enable !== undefined && runtime.enable !== node.enable) {
                     changes.push(`enable: ${runtime.enable}`);
                 }
@@ -304,6 +321,11 @@
                 $("#node-input-minCycleTime").addClass("input-error");
                 return false;
             }
+            const initWindow = parseFloat($("#node-input-initWindow").val());
+            if (isNaN(initWindow) || initWindow < 0) {
+                $("#node-input-initWindow").addClass("input-error");
+                return false;
+            }
             return true;
         }
     });
@@ -313,18 +335,38 @@
 Controls automatic or locked heating/cooling mode switching for HVAC systems based on temperature, with two algorithms: single setpoint with deadband or split setpoints.
 
 ### Inputs
-: context (string) : Configures node (`"algorithm"`, `"setpoint"`, `"deadband"`, `"heatingSetpoint"`, `"coolingSetpoint"`, `"anticipator"`, `"swapTime"`, `"minTempSetpoint"`, `"maxTempSetpoint"`, `"minCycleTime"`, `"enable"`, `"operationMode"`, `"status"`).
+: context (string) : Configures node (`"algorithm"`, `"setpoint"`, `"deadband"`, `"heatingSetpoint"`, `"coolingSetpoint"`, `"anticipator"`, `"swapTime"`, `"minTempSetpoint"`, `"maxTempSetpoint"`, `"minCycleTime"`, `"initWindow"`, `"enable"`, `"operationMode"`, `"status"`).
 : payload (number | boolean | string) : Number for temperature or config values, boolean for `enable`, string for `algorithm` (`"single"`, `"split"`) or `operationMode` (`"auto"`, `"heat"`, `"cool"`).
 
 ### Outputs
-: mode (boolean) : `true` for heating, `false` for cooling, `null` if disabled.
+: mode (boolean) : `true` for heating, `false` for cooling, `null` if disabled. `msg.context = "isHeating"` is attached.
 : diagnostics (object) : Object with `mode` (`"heating"`, `"cooling"`, `"disabled"`), `isHeating` (`true`, `false`, `null`), `heatingSetpoint`, `coolingSetpoint`, `temperature`, `enabled`, `operationMode`, `algorithm`, and for single algorithm: `setpoint`, `deadband`.
+
+### Properties
+: name (string) : Display name in editor. Default: "" (shows "changeover").
+: algorithm (string) : `"single"` (setpoint with deadband) or `"split"` (separate setpoints). Default: `"single"`.
+: setpoint (string) : Target temperature (°F, from `num`, `msg`, `flow`, `global`). Default: "70".
+: setpointType (string) : Source of `setpoint` (`"num"`, `"msg"`, `"flow"`, `"global"`). Default: `"num"`.
+: deadband (number) : Temperature range for no action (°F, positive). Default: 2.
+: heatingSetpoint (string) : Heating target (°F, from `num`, `msg`, `flow`, `global`). Default: "68".
+: heatingSetpointType (string) : Source of `heatingSetpoint`. Default: `"num"`.
+: coolingSetpoint (string) : Cooling target (°F, from `num`, `msg`, `flow`, `global`). Default: "74".
+: coolingSetpointType (string) : Source of `coolingSetpoint`. Default: `"num"`.
+: anticipator (number) : Hysteresis adjustment (°F, non-negative). Default: 0.5.
+: swapTime (string) : Minimum time between mode changes after initial switch (seconds, non-negative, from `num`, `msg`, `flow`, `global`). Default: "300".
+: swapTimeType (string) : Source of `swapTime`. Default: `"num"`.
+: minTempSetpoint (number) : Minimum setpoint (°F). Default: 55.
+: maxTempSetpoint (number) : Maximum setpoint (°F). Default: 90.
+: minCycleTime (number) : Minimum active cycle time (seconds, non-negative). Default: 60.
+: initWindow (number) : Time window after startup to lock mode and suppress outputs (seconds, non-negative). Default: 10.
+: enable (boolean) : Enable (`true`) or disable (`false`) changeover. Default: `true`.
+: operationMode (string) : `"auto"` (temperature-based), `"heat"` (locked heating), `"cool"` (locked cooling). Default: `"auto"`.
 
 ### Details
 Controls HVAC mode switching using two algorithms:
 - **Single Setpoint**: Uses `setpoint` and `deadband` to compute `heatingSetpoint = setpoint - deadband/2` and `coolingSetpoint = setpoint + deadband/2`. Switches to heating if `temperature < setpoint - deadband/2 - anticipator`, cooling if `temperature > setpoint + deadband/2 + anticipator`.
 - **Split Setpoint**: Uses separate `heatingSetpoint` and `coolingSetpoint`. Switches to heating if `temperature < heatingSetpoint - anticipator`, cooling if `temperature > coolingSetpoint + anticipator`.
-In `auto` mode, switches based on temperature thresholds, respecting `swapTime` (minimum time between mode changes). In `heat` or `cool` mode, locks to heating or cooling. If `enable` is `false`, outputs `null` and `mode: "disabled"`. Configurable via editor (`name`, `algorithm`, `setpoint`, etc.) or `msg.context` (e.g., `{ context: "setpoint", payload: 72 }`). Runtime changes (e.g., `setpoint`, `operationMode`) appear in "Changed Runtime Values". Query runtime state with `msg.context = "status"`.
+In `auto` mode, switches based on temperature thresholds. After startup, locks mode and suppresses outputs for `initWindow` (default 10s) to stabilize. Post-`initWindow`, evaluates mode immediately without `swapTime` constraint for the first switch, then respects `swapTime` (minimum time between mode changes). In `heat` or `cool` mode, locks to heating or cooling, ignoring `initWindow`. If `enable` is `false`, outputs `null` and `mode: "disabled"`. Configurable via editor (`name`, `algorithm`, `setpoint`, etc.) or `msg.context` (e.g., `{ context: "setpoint", payload: 72 }`). Runtime changes (e.g., `setpoint`, `operationMode`) appear in "Changed Runtime Values". Query runtime state with `msg.context = "status"`.
 
 ### Error Handling
 - Missing `msg.payload`: No output, red status (`missing payload`, `missing temperature`).
@@ -335,9 +377,10 @@ In `auto` mode, switches based on temperature thresholds, respecting `swapTime` 
 - Invalid message (e.g., `msg` undefined): No output, red status (`invalid message`).
 
 ### Status
-- Green (dot): Configuration updates (e.g., `setpoint: 70.0`, `operationMode: auto`, `enable: true`, `algorithm: single`, `swapTime: 300`).
+- Green (dot): Configuration updates (e.g., `setpoint: 70.0`, `operationMode: auto`, `enable: true`, `algorithm: single`, `swapTime: 300`, `initWindow: 10`).
 - Blue (dot): Outputs when mode changes (e.g., `in: 68.00, out: heating`, `status requested`).
 - Blue (ring): Outputs when mode unchanged (e.g., `in: 67.00, out: heating` if same as previous).
+- Yellow (ring): Within initialization window (e.g., `initializing, out: heating`).
 - Red (ring): Errors or disabled state (e.g., `disabled`, `missing payload`, `invalid setpoint`, `invalid message`).
 - Yellow (ring): Warnings (e.g., `unknown context`).
 

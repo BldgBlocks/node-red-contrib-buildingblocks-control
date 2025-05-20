@@ -4,18 +4,22 @@ module.exports = function(RED) {
         const node = this;
 
         // Initialize runtime state
+        const durationMultiplier = config.durationUnits === "seconds" ? 1000 : config.durationUnits === "minutes" ? 60000 : 1;
         node.runtime = {
             name: config.name || "",
-            duration: parseInt(config.duration) || 1000,
-            triggerOnTrue: config.triggerOnTrue !== false,
+            duration: (parseFloat(config.duration) || 1000) * durationMultiplier,
+            durationUnits: config.durationUnits || "milliseconds",
+            resetRequireTrue: config.resetRequireTrue !== false,
+            resetOnComplete: config.resetOnComplete || false,
             triggerCount: 0,
             locked: false,
             output: false
         };
 
         // Validate initial config
-        if (!Number.isInteger(node.runtime.duration) || node.runtime.duration < 1) {
+        if (isNaN(node.runtime.duration) || node.runtime.duration < 1) {
             node.runtime.duration = 1000;
+            node.runtime.durationUnits = "milliseconds";
             node.status({ fill: "red", shape: "ring", text: "invalid duration" });
         }
 
@@ -42,27 +46,65 @@ module.exports = function(RED) {
             // Handle context updates
             if (msg.hasOwnProperty("context")) {
                 if (msg.context === "reset") {
-                    if(msg.payload === true) {
-                        if (timer) {
+                    if (node.runtime.resetRequireTrue && msg.payload !== true) {
+                        node.status({ fill: "red", shape: "ring", text: "invalid reset payload" });
+                        if (done) done();
+                        return;
+                    }
+                    if (timer) {
                         clearTimeout(timer);
                         timer = null;
-                        }
-                        node.runtime.locked = false;
-                        node.runtime.output = false;
-                        node.status({
-                            fill: "blue",
-                            shape: "dot",
-                            text: `triggers: ${node.runtime.triggerCount}, reset`
-                        });
-                        send({ payload: false });
                     }
+                    node.runtime.locked = false;
+                    node.runtime.output = false;
+                    node.status({
+                        fill: "blue",
+                        shape: "dot",
+                        text: `triggers: ${node.runtime.triggerCount}, reset`
+                    });
+                    send({ payload: false });
                     if (done) done();
                     return;
-                } else {
-                    node.status({ fill: "yellow", shape: "ring", text: "unknown context" });
-                    if (done) done("Unknown context");
+                }
+                if (msg.context === "duration") {
+                    if (!msg.hasOwnProperty("payload")) {
+                        node.status({ fill: "red", shape: "ring", text: "missing payload for duration" });
+                        if (done) done();
+                        return;
+                    }
+                    let newDuration = parseFloat(msg.payload);
+                    const newDurationUnits = msg.units || "milliseconds";
+                    const multiplier = newDurationUnits === "seconds" ? 1000 : newDurationUnits === "minutes" ? 60000 : 1;
+                    newDuration *= multiplier;
+                    if (isNaN(newDuration) || newDuration < 1) {
+                        node.status({ fill: "red", shape: "ring", text: "invalid duration" });
+                        if (done) done();
+                        return;
+                    }
+                    node.runtime.duration = newDuration;
+                    node.runtime.durationUnits = newDurationUnits;
+                    node.status({
+                        fill: "green",
+                        shape: "dot",
+                        text: `duration: ${node.runtime.duration.toFixed(0)} ms`
+                    });
+                    if (done) done();
                     return;
                 }
+                node.status({ fill: "yellow", shape: "ring", text: "unknown context" });
+                if (done) done("Unknown context");
+                return;
+            }
+
+            // Validate payload for trigger
+            if (msg.payload !== true) {
+                node.status({
+                    fill: "yellow",
+                    shape: "ring",
+                    text: `ignored: non-true`
+                });
+                if (done) done();
+                return;
             }
 
             // Check if locked
@@ -77,39 +119,39 @@ module.exports = function(RED) {
                 return;
             }
 
-            // Check trigger condition
-            if (!node.runtime.triggerOnTrue || msg.payload === true) {
-                node.runtime.triggerCount++;
-                node.runtime.locked = true;
-                node.runtime.output = true;
+            // Trigger pulse
+            node.runtime.triggerCount++;
+            node.runtime.locked = true;
+            node.runtime.output = true;
 
-                // Send true pulse
-                node.status({
-                    fill: "green",
-                    shape: "dot",
-                    text: `triggers: ${node.runtime.triggerCount}, out: true`
-                });
-                send({ payload: true });
+            // Send true pulse
+            node.status({
+                fill: "green",
+                shape: "dot",
+                text: `triggers: ${node.runtime.triggerCount}, out: true`
+            });
+            send({ payload: true });
 
-                // Schedule false output
-                timer = setTimeout(() => {
-                    node.runtime.output = false;
+            // Schedule false output
+            timer = setTimeout(() => {
+                node.runtime.output = false;
+                if (node.runtime.resetOnComplete) {
+                    node.runtime.locked = false;
+                    node.status({
+                        fill: "blue",
+                        shape: "ring",
+                        text: `triggers: ${node.runtime.triggerCount}, unlocked`
+                    });
+                } else {
                     node.status({
                         fill: "red",
                         shape: "ring",
                         text: `triggers: ${node.runtime.triggerCount}, locked`
                     });
-                    send({ payload: false });
-                    timer = null;
-                }, node.runtime.duration);
-            } else {
-                node.status({
-                    fill: "yellow",
-                    shape: "ring",
-                    text: `triggers: ${node.runtime.triggerCount}, ignored`
-                });
-                send({ payload: node.runtime.output });
-            }
+                }
+                send({ payload: false });
+                timer = null;
+            }, node.runtime.duration);
 
             if (done) done();
         });
@@ -133,7 +175,9 @@ module.exports = function(RED) {
             res.json({
                 name: node.runtime.name,
                 duration: node.runtime.duration,
-                triggerOnTrue: node.runtime.triggerOnTrue,
+                durationUnits: node.runtime.durationUnits,
+                resetRequireTrue: node.runtime.resetRequireTrue,
+                resetOnComplete: node.runtime.resetOnComplete,
                 triggerCount: node.runtime.triggerCount,
                 locked: node.runtime.locked,
                 output: node.runtime.output

@@ -23,7 +23,8 @@ module.exports = function(RED) {
             maxTempSetpoint: parseFloat(config.maxTempSetpoint) || 90,
             minCycleTime: parseFloat(config.minCycleTime) || 60,
             enable: config.enable !== false,
-            operationMode: config.operationMode || "auto"
+            operationMode: config.operationMode || "auto",
+            initWindow: parseFloat(config.initWindow) || 10
         };
 
         // Validate non-typedInput fields at startup
@@ -44,6 +45,10 @@ module.exports = function(RED) {
             node.runtime.minCycleTime = 60;
             node.status({ fill: "red", shape: "ring", text: "invalid minCycleTime, using 60" });
         }
+        if (node.runtime.initWindow < 0) {
+            node.runtime.initWindow = 10;
+            node.status({ fill: "red", shape: "ring", text: "invalid initWindow, using 10" });
+        }
 
         // Initialize state
         let currentMode = node.runtime.operationMode === "cool" ? "cooling" : "heating";
@@ -52,6 +57,8 @@ module.exports = function(RED) {
         let lastCycleStart = 0;
         let temperature = null;
         let lastMode = currentMode;
+        const startTime = Date.now() / 1000;
+        let firstSwitch = true;
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
@@ -109,7 +116,8 @@ module.exports = function(RED) {
                         maxTempSetpoint: node.runtime.maxTempSetpoint,
                         minCycleTime: node.runtime.minCycleTime,
                         enable: node.runtime.enable,
-                        operationMode: node.runtime.operationMode
+                        operationMode: node.runtime.operationMode,
+                        initWindow: node.runtime.initWindow
                     };
                     if (node.runtime.algorithm === "single") {
                         statusPayload.setpoint = parseFloat(node.runtime.setpoint);
@@ -293,6 +301,15 @@ module.exports = function(RED) {
                         node.runtime.minCycleTime = value;
                         node.status({ fill: "green", shape: "dot", text: `minCycleTime: ${value.toFixed(0)}` });
                         break;
+                    case "initWindow":
+                        if (value < 0) {
+                            node.status({ fill: "red", shape: "ring", text: "invalid initWindow" });
+                            if (done) done();
+                            return;
+                        }
+                        node.runtime.initWindow = value;
+                        node.status({ fill: "green", shape: "dot", text: `initWindow: ${value.toFixed(0)}` });
+                        break;
                     default:
                         node.status({ fill: "yellow", shape: "ring", text: "unknown context" });
                         if (done) done();
@@ -317,7 +334,11 @@ module.exports = function(RED) {
             }
 
             temperature = input;
-            send(evaluateState() || buildOutputs());
+            let now = Date.now() / 1000;
+            let inInitWindow = now - startTime < node.runtime.initWindow;
+            if (!inInitWindow) {
+                send(evaluateState() || buildOutputs());
+            }
             updateStatus();
             if (done) done();
 
@@ -332,6 +353,12 @@ module.exports = function(RED) {
                     return null;
                 }
 
+                let now = Date.now() / 1000;
+                let inInitWindow = now - startTime < node.runtime.initWindow;
+                if (inInitWindow) {
+                    return null; // Suppress outputs during initWindow
+                }
+
                 let newMode = currentMode;
                 let newIsHeating = isHeating;
 
@@ -342,8 +369,8 @@ module.exports = function(RED) {
                     newMode = "cooling";
                     newIsHeating = false;
                 } else { // auto
-                    let now = Date.now() / 1000;
-                    let canSwitchMode = now - lastModeChange >= parseFloat(node.runtime.swapTime);
+                    let canSwitchMode = firstSwitch ? true : now - lastModeChange >= parseFloat(node.runtime.swapTime);
+                    firstSwitch = false; // Allow first switch post-initWindow without swapTime
 
                     let heatingThreshold, coolingThreshold;
 
@@ -355,12 +382,14 @@ module.exports = function(RED) {
                         coolingThreshold = parseFloat(node.runtime.coolingSetpoint) + node.runtime.anticipator;
                     }
 
-                    if (temperature < heatingThreshold && canSwitchMode) {
-                        newMode = "heating";
-                        newIsHeating = true;
-                    } else if (temperature > coolingThreshold && canSwitchMode) {
-                        newMode = "cooling";
-                        newIsHeating = false;
+                    if (canSwitchMode) {
+                        if (temperature < heatingThreshold) {
+                            newMode = "heating";
+                            newIsHeating = true;
+                        } else if (temperature > coolingThreshold) {
+                            newMode = "cooling";
+                            newIsHeating = false;
+                        }
                     }
                 }
 
@@ -389,7 +418,7 @@ module.exports = function(RED) {
                 }
 
                 return [
-                    { payload: node.runtime.enable ? isHeating : null },
+                    { payload: node.runtime.enable ? isHeating : null, context: "isHeating" },
                     {
                         payload: {
                             mode: node.runtime.enable ? currentMode : "disabled",
@@ -410,8 +439,17 @@ module.exports = function(RED) {
             }
 
             function updateStatus() {
+                let now = Date.now() / 1000;
+                let inInitWindow = now - startTime < node.runtime.initWindow;
+
                 if (!node.runtime.enable) {
                     node.status({ fill: "red", shape: "ring", text: "disabled" });
+                } else if (inInitWindow) {
+                    node.status({
+                        fill: "yellow",
+                        shape: "ring",
+                        text: `initializing, out: ${currentMode}`
+                    });
                 } else if (currentMode === lastMode) {
                     node.status({
                         fill: "blue",
@@ -451,7 +489,8 @@ module.exports = function(RED) {
                 maxTempSetpoint: node.runtime.maxTempSetpoint,
                 minCycleTime: node.runtime.minCycleTime,
                 enable: node.runtime.enable,
-                operationMode: node.runtime.operationMode
+                operationMode: node.runtime.operationMode,
+                initWindow: node.runtime.initWindow
             };
             if (node.runtime.algorithm === "single") {
                 runtime.setpoint = parseFloat(node.runtime.setpoint);

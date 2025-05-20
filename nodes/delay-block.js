@@ -82,6 +82,7 @@ module.exports = function(RED) {
                     if (done) done();
                     return;
                 }
+                node.status({ fill: "yellow", shape: "ring", text: "unknown context" });
                 if (done) done();
                 return;
             }

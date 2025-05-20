@@ -258,7 +258,7 @@ module.exports = function(RED) {
 
             // Send outputs
             const outputs = [
-                { payload: node.runtime.isHeating },
+                { payload: node.runtime.isHeating, context: "isHeating" },
                 { payload: above },
                 { payload: below }
             ];
