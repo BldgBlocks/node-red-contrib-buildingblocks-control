@@ -24,6 +24,7 @@ module.exports = function(RED) {
             heatingOn: config.heatingOn || "66",
             heatingOnType: config.heatingOnType || "num",
             diff: parseFloat(config.diff) || 2,
+            anticipator: parseFloat(config.anticipator) || 0.5,
             isHeating: config.isHeating === true
         };
 
@@ -32,7 +33,10 @@ module.exports = function(RED) {
             node.runtime.diff = 2;
             node.status({ fill: "red", shape: "ring", text: "invalid diff, using 2" });
         }
-        // Validate specified algorithm setpoints
+        if (node.runtime.anticipator < 0) {
+            node.runtime.anticipator = 0.5;
+            node.status({ fill: "red", shape: "ring", text: "invalid anticipator, using 0.5" });
+        }
         if (node.runtime.algorithm === "specified") {
             const coolingOn = parseFloat(node.runtime.coolingOn);
             const coolingOff = parseFloat(node.runtime.coolingOff);
@@ -127,6 +131,7 @@ module.exports = function(RED) {
                     const statusPayload = {
                         algorithm: node.runtime.algorithm,
                         diff: node.runtime.diff,
+                        anticipator: node.runtime.anticipator,
                         isHeating: node.runtime.isHeating
                     };
                     if (node.runtime.algorithm === "single") {
@@ -312,6 +317,19 @@ module.exports = function(RED) {
                             node.status({ fill: "red", shape: "ring", text: "invalid diff" });
                         }
                         break;
+                    case "anticipator":
+                        const antValue = parseFloat(msg.payload);
+                        if (!isNaN(antValue) && antValue >= 0) {
+                            node.runtime.anticipator = antValue;
+                            node.status({
+                                fill: "green",
+                                shape: "dot",
+                                text: `anticipator: ${antValue.toFixed(2)}`
+                            });
+                        } else {
+                            node.status({ fill: "red", shape: "ring", text: "invalid anticipator" });
+                        }
+                        break;
                     case "isHeating":
                         if (typeof msg.payload === "boolean") {
                             node.runtime.isHeating = msg.payload;
@@ -355,6 +373,8 @@ module.exports = function(RED) {
                 const delta = node.runtime.diff / 2;
                 const hiValue = setpoint + delta;
                 const loValue = setpoint - delta;
+                const hiOffValue = setpoint + delta - node.runtime.anticipator;
+                const loOffValue = setpoint - delta + node.runtime.anticipator;
 
                 if (input > hiValue) {
                     above = true;
@@ -362,9 +382,9 @@ module.exports = function(RED) {
                 } else if (input < loValue) {
                     above = false;
                     below = true;
-                } else if (above && input < setpoint) {
+                } else if (above && input < hiOffValue) {
                     above = false;
-                } else if (below && input > setpoint) {
+                } else if (below && input > loOffValue) {
                     below = false;
                 }
             } else if (node.runtime.algorithm === "split") {
@@ -372,10 +392,11 @@ module.exports = function(RED) {
                     const heatingSetpoint = parseFloat(node.runtime.heatingSetpoint);
                     const delta = node.runtime.diff / 2;
                     const loValue = heatingSetpoint - delta;
+                    const loOffValue = heatingSetpoint + node.runtime.anticipator;
 
                     if (input < loValue) {
                         below = true;
-                    } else if (below && input > heatingSetpoint) {
+                    } else if (below && input > loOffValue) {
                         below = false;
                     }
                     above = false;
@@ -383,10 +404,11 @@ module.exports = function(RED) {
                     const coolingSetpoint = parseFloat(node.runtime.coolingSetpoint);
                     const delta = node.runtime.diff / 2;
                     const hiValue = coolingSetpoint + delta;
+                    const hiOffValue = coolingSetpoint - node.runtime.anticipator;
 
                     if (input > hiValue) {
                         above = true;
-                    } else if (above && input < coolingSetpoint) {
+                    } else if (above && input < hiOffValue) {
                         above = false;
                     }
                     below = false;
@@ -395,18 +417,20 @@ module.exports = function(RED) {
                 if (node.runtime.isHeating) {
                     const heatingOn = parseFloat(node.runtime.heatingOn);
                     const heatingOff = parseFloat(node.runtime.heatingOff);
+                    const heatingOffValue = heatingOff + node.runtime.anticipator;
                     if (input < heatingOn) {
                         below = true;
-                    } else if (below && input > heatingOff) {
+                    } else if (below && input > heatingOffValue) {
                         below = false;
                     }
                     above = false;
                 } else {
                     const coolingOn = parseFloat(node.runtime.coolingOn);
                     const coolingOff = parseFloat(node.runtime.coolingOff);
+                    const coolingOffValue = coolingOff - node.runtime.anticipator;
                     if (input > coolingOn) {
                         above = true;
-                    } else if (above && input < coolingOff) {
+                    } else if (above && input < coolingOffValue) {
                         above = false;
                     }
                     below = false;
@@ -455,6 +479,7 @@ module.exports = function(RED) {
                 name: node.runtime.name,
                 algorithm: node.runtime.algorithm,
                 diff: node.runtime.diff,
+                anticipator: node.runtime.anticipator,
                 isHeating: node.runtime.isHeating
             };
             if (node.runtime.algorithm === "single") {

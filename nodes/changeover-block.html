@@ -29,12 +29,17 @@
         <input type="text" id="node-input-coolingSetpoint" class="node-input-typed" placeholder="74">
         <input type="hidden" id="node-input-coolingSetpointType">
     </div>
-    <div class="form-row">
-        <label for="node-input-anticipator" title="Temperature offset for proactive mode switching (non-negative number)"><i class="fa fa-tachometer"></i> Anticipator</label>
-        <input type="text" id="node-input-anticipator" placeholder="0.5">
+    <div class="form-row split-only" style="display: none;">
+        <div id="split-setpoint-warning" style="color: red; display: none; margin-top: 5px;">
+            Cooling setpoint must be greater than heating setpoint
+        </div>
     </div>
     <div class="form-row">
-        <label for="node-input-swapTime" title="Minimum time before mode change (seconds, non-negative number from num, msg, flow, or global)"><i class="fa fa-clock-o"></i> Swap Time</label>
+        <label for="node-input-extent" title="Temperature offset for mode switching thresholds (non-negative number)"><i class="fa fa-tachometer"></i> Extent</label>
+        <input type="text" id="node-input-extent" placeholder="1">
+    </div>
+    <div class="form-row">
+        <label for="node-input-swapTime" title="Minimum time before mode change (seconds, minimum 60, from num, msg, flow, or global)"><i class="fa fa-clock-o"></i> Swap Time</label>
         <input type="text" id="node-input-swapTime" class="node-input-typed" placeholder="300">
         <input type="hidden" id="node-input-swapTimeType">
     </div>
@@ -45,10 +50,6 @@
     <div class="form-row">
         <label for="node-input-maxTempSetpoint" title="Maximum allowable setpoint"><i class="fa fa-thermometer-full"></i> Max Setpoint</label>
         <input type="text" id="node-input-maxTempSetpoint" placeholder="90">
-    </div>
-    <div class="form-row">
-        <label for="node-input-minCycleTime" title="Minimum cycle time (seconds, non-negative number)"><i class="fa fa-refresh"></i> Min Cycle Time</label>
-        <input type="text" id="node-input-minCycleTime" placeholder="60">
     </div>
     <div class="form-row">
         <label for="node-input-initWindow" title="Initialization window to collect inputs before mode selection (seconds, non-negative number)"><i class="fa fa-hourglass-start"></i> Init Window</label>
@@ -63,8 +64,8 @@
         </select>
     </div>
     <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
+        <label><i class="fa fa-info-circle"></i> Effective Setpoints</label>
+        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Effective Setpoints: Initializing</pre>
     </div>
 </script>
 
@@ -82,12 +83,11 @@
             heatingSetpointType: { value: "num" },
             coolingSetpoint: { value: "74" },
             coolingSetpointType: { value: "num" },
-            anticipator: { value: "0.5" },
+            extent: { value: "1" },
             swapTime: { value: "300" },
             swapTimeType: { value: "num" },
             minTempSetpoint: { value: "55" },
             maxTempSetpoint: { value: "90" },
-            minCycleTime: { value: "60" },
             initWindow: { value: "10" },
             operationMode: { value: "auto" }
         },
@@ -106,145 +106,156 @@
             const $singleFields = $(".single-only");
             const $splitFields = $(".split-only");
 
-            // Initialize typed inputs
-            const setpointInput = $("#node-input-setpoint").typedInput({
-                default: "num",
-                types: ["num", "msg", "flow", "global"],
-                typeField: "#node-input-setpointType"
-            });
-            setpointInput.typedInput("type", node.setpointType || "num");
-            setpointInput.typedInput("value", node.setpoint || "70");
+            try {
+                // Initialize typed inputs
+                $("#node-input-setpoint").typedInput({
+                    default: "num",
+                    types: ["num", "msg", "flow", "global"],
+                    typeField: "#node-input-setpointType"
+                }).typedInput("type", node.setpointType || "num").typedInput("value", node.setpoint || "70");
 
-            const heatingSetpointInput = $("#node-input-heatingSetpoint").typedInput({
-                default: "num",
-                types: ["num", "msg", "flow", "global"],
-                typeField: "#node-input-heatingSetpointType"
-            });
-            heatingSetpointInput.typedInput("type", node.heatingSetpointType || "num");
-            heatingSetpointInput.typedInput("value", node.heatingSetpoint || "68");
+                $("#node-input-heatingSetpoint").typedInput({
+                    default: "num",
+                    types: ["num", "msg", "flow", "global"],
+                    typeField: "#node-input-heatingSetpointType"
+                }).typedInput("type", node.heatingSetpointType || "num").typedInput("value", node.heatingSetpoint || "68");
 
-            const coolingSetpointInput = $("#node-input-coolingSetpoint").typedInput({
-                default: "num",
-                types: ["num", "msg", "flow", "global"],
-                typeField: "#node-input-coolingSetpointType"
-            });
-            coolingSetpointInput.typedInput("type", node.coolingSetpointType || "num");
-            coolingSetpointInput.typedInput("value", node.coolingSetpoint || "74");
+                $("#node-input-coolingSetpoint").typedInput({
+                    default: "num",
+                    types: ["num", "msg", "flow", "global"],
+                    typeField: "#node-input-coolingSetpointType"
+                }).typedInput("type", node.coolingSetpointType || "num").typedInput("value", node.coolingSetpoint || "74");
 
-            const swapTimeInput = $("#node-input-swapTime").typedInput({
-                default: "num",
-                types: ["num", "msg", "flow", "global"],
-                typeField: "#node-input-swapTimeType"
-            });
-            swapTimeInput.typedInput("type", node.swapTimeType || "num");
-            swapTimeInput.typedInput("value", node.swapTime || "300");
+                $("#node-input-swapTime").typedInput({
+                    default: "num",
+                    types: ["num", "msg", "flow", "global"],
+                    typeField: "#node-input-swapTimeType"
+                }).typedInput("type", node.swapTimeType || "num").typedInput("value", node.swapTime || "300");
 
-            // Toggle fields based on algorithm
-            function toggleFields() {
-                if ($algorithm.val() === "single") {
-                    $singleFields.show();
-                    $splitFields.hide();
-                } else {
-                    $singleFields.hide();
-                    $splitFields.show();
-                }
-            }
-
-            $algorithm.on("change", toggleFields);
-            toggleFields();
-
-            // Fetch runtime changes
-            $.getJSON(`/changeover-block-runtime/${node.id}`, function(data) {
-                const runtime = data || {};
-                const changes = [];
-                if (runtime.name) changes.push(`name: ${runtime.name}`);
-                if (runtime.algorithm !== "single") changes.push(`algorithm: ${runtime.algorithm}`);
-                if (runtime.algorithm === "single") {
-                    if (runtime.setpoint !== undefined && runtime.setpoint !== Number(node.setpoint)) {
-                        const effectiveHeating = runtime.setpoint - (runtime.deadband || node.deadband) / 2;
-                        const effectiveCooling = runtime.setpoint + (runtime.deadband || node.deadband) / 2;
-                        changes.push(`setpoint: ${parseFloat(runtime.setpoint).toFixed(1)}`);
-                        changes.push(`effectiveHeating: ${effectiveHeating.toFixed(1)}`);
-                        changes.push(`effectiveCooling: ${effectiveCooling.toFixed(1)}`);
-                    }
-                    if (runtime.deadband !== undefined && runtime.deadband !== Number(node.deadband)) {
-                        changes.push(`deadband: ${runtime.deadband.toFixed(1)}`);
-                    }
-                } else {
-                    if (runtime.heatingSetpoint !== undefined && runtime.heatingSetpoint !== Number(node.heatingSetpoint)) {
-                        changes.push(`heatingSetpoint: ${parseFloat(runtime.heatingSetpoint).toFixed(1)}`);
-                    }
-                    if (runtime.coolingSetpoint !== undefined && runtime.coolingSetpoint !== Number(node.coolingSetpoint)) {
-                        changes.push(`coolingSetpoint: ${parseFloat(runtime.coolingSetpoint).toFixed(1)}`);
+                // Toggle fields based on algorithm
+                function toggleFields() {
+                    if ($algorithm.val() === "single") {
+                        $singleFields.show();
+                        $splitFields.hide();
+                        $("#split-setpoint-warning").hide();
+                    } else {
+                        $singleFields.hide();
+                        $splitFields.show();
+                        validateSplitSetpoints();
                     }
                 }
-                if (runtime.anticipator !== 0.5) changes.push(`anticipator: ${runtime.anticipator.toFixed(1)}`);
-                if (runtime.swapTime !== 300) changes.push(`swapTime: ${runtime.swapTime}`);
-                if (runtime.minTempSetpoint !== 55) changes.push(`minTempSetpoint: ${runtime.minTempSetpoint.toFixed(1)}`);
-                if (runtime.maxTempSetpoint !== 90) changes.push(`maxTempSetpoint: ${runtime.maxTempSetpoint.toFixed(1)}`);
-                if (runtime.minCycleTime !== 60) changes.push(`minCycleTime: ${runtime.minCycleTime}`);
-                if (runtime.initWindow !== 10) changes.push(`initWindow: ${runtime.initWindow}`);
-                if (runtime.operationMode !== "auto") changes.push(`operationMode: ${runtime.operationMode}`);
-                if (runtime.currentMode !== (runtime.operationMode === "cool" ? "cooling" : "heating")) changes.push(`currentMode: ${runtime.currentMode}`);
-                if (runtime.lastTemperature !== null) changes.push(`lastTemperature: ${runtime.lastTemperature.toFixed(1)}`);
 
-                const displayText = changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None";
-                $("#node-runtime-changes").text(displayText);
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown (failed to fetch runtime)");
-            });
+                $algorithm.on("change", toggleFields);
+                toggleFields();
 
-            // Disable typedInput validation but allow global paths
-            $(".node-input-typed").each(function() {
-                $(this).typedInput("validate", function(value, type) {
-                    if (type === "global" && value) {
-                        return !!value;
+                // Fetch runtime values or use configured values for effective setpoints
+                $.getJSON(`/changeover-block-runtime/${node.id}`, function(data) {
+                    const runtime = data || {};
+                    const changes = [];
+
+                    const algorithm = runtime.algorithm || node.algorithm;
+                    const extent = runtime.extent !== undefined ? runtime.extent : Number(node.extent);
+
+                    if (algorithm === "single") {
+                        const setpoint = runtime.setpoint !== undefined ? parseFloat(runtime.setpoint) : Number(node.setpoint);
+                        const deadband = runtime.deadband !== undefined ? runtime.deadband : Number(node.deadband);
+                        const effectiveHeating = setpoint - deadband / 2 - extent;
+                        const effectiveCooling = setpoint + deadband / 2 + extent;
+                        changes.push(`effectiveHeatingThreshold: ${effectiveHeating.toFixed(1)}`);
+                        changes.push(`effectiveCoolingThreshold: ${effectiveCooling.toFixed(1)}`);
+                    } else {
+                        const heatingSetpoint = runtime.heatingSetpoint !== undefined ? parseFloat(runtime.heatingSetpoint) : Number(node.heatingSetpoint);
+                        const coolingSetpoint = runtime.coolingSetpoint !== undefined ? parseFloat(runtime.coolingSetpoint) : Number(node.coolingSetpoint);
+                        const effectiveHeating = heatingSetpoint - extent;
+                        const effectiveCooling = coolingSetpoint + extent;
+                        changes.push(`effectiveHeatingThreshold: ${effectiveHeating.toFixed(1)}`);
+                        changes.push(`effectiveCoolingThreshold: ${effectiveCooling.toFixed(1)}`);
                     }
-                    return true;
+
+                    const displayText = `Effective Setpoints:\n${changes.join("\n")}`;
+                    $("#node-runtime-changes").text(displayText);
+                }).fail(function() {
+                    const changes = [];
+
+                    const algorithm = node.algorithm;
+                    const extent = Number(node.extent);
+
+                    if (algorithm === "single") {
+                        const setpoint = Number(node.setpoint);
+                        const deadband = Number(node.deadband);
+                        const effectiveHeating = setpoint - deadband / 2 - extent;
+                        const effectiveCooling = setpoint + deadband / 2 + extent;
+                        changes.push(`effectiveHeatingThreshold: ${effectiveHeating.toFixed(1)}`);
+                        changes.push(`effectiveCoolingThreshold: ${effectiveCooling.toFixed(1)}`);
+                    } else {
+                        const heatingSetpoint = Number(node.heatingSetpoint);
+                        const coolingSetpoint = Number(node.coolingSetpoint);
+                        const effectiveHeating = heatingSetpoint - extent;
+                        const effectiveCooling = coolingSetpoint + extent;
+                        changes.push(`effectiveHeatingThreshold: ${effectiveHeating.toFixed(1)}`);
+                        changes.push(`effectiveCoolingThreshold: ${effectiveCooling.toFixed(1)}`);
+                    }
+
+                    const displayText = `Effective Setpoints:\n${changes.join("\n")}`;
+                    $("#node-runtime-changes").text(displayText);
                 });
-            });
 
-            // Validate non-typed inputs
-            $("#node-input-deadband").on("input", function() {
-                const val = parseFloat($(this).val());
-                if (isNaN(val) || val <= 0) $(this).addClass("input-error");
-                else $(this).removeClass("input-error");
-            });
+                // Validate non-typed inputs
+                $("#node-input-deadband").on("input", function() {
+                    const val = parseFloat($(this).val());
+                    $(this).toggleClass("input-error", isNaN(val) || val <= 0);
+                });
 
-            $("#node-input-anticipator").on("input", function() {
-                const val = parseFloat($(this).val());
-                if (isNaN(val) || val < 0) $(this).addClass("input-error");
-                else $(this).removeClass("input-error");
-            });
+                $("#node-input-extent").on("input", function() {
+                    const val = parseFloat($(this).val());
+                    $(this).toggleClass("input-error", isNaN(val) || val < 0);
+                });
 
-            $("#node-input-minTempSetpoint").on("input", function() {
-                const val = parseFloat($(this).val());
-                const max = parseFloat($("#node-input-maxTempSetpoint").val());
-                if (isNaN(val) || val >= max) $(this).addClass("input-error");
-                else $(this).removeClass("input-error");
-            });
+                $("#node-input-swapTime").on("input", function() {
+                    const val = parseFloat($(this).typedInput("value"));
+                    $(this).toggleClass("input-error", isNaN(val) || val < 60);
+                });
 
-            $("#node-input-maxTempSetpoint").on("input", function() {
-                const val = parseFloat($(this).val());
-                const min = parseFloat($("#node-input-minTempSetpoint").val());
-                if (isNaN(val) || val <= min) $(this).addClass("input-error");
-                else $(this).removeClass("input-error");
-            });
+                $("#node-input-minTempSetpoint").on("input", function() {
+                    const val = parseFloat($(this).val());
+                    const max = parseFloat($("#node-input-maxTempSetpoint").val());
+                    $(this).toggleClass("input-error", isNaN(val) || val >= max);
+                });
 
-            $("#node-input-minCycleTime").on("input", function() {
-                const val = parseFloat($(this).val());
-                if (isNaN(val) || val < 0) $(this).addClass("input-error");
-                else $(this).removeClass("input-error");
-            });
+                $("#node-input-maxTempSetpoint").on("input", function() {
+                    const val = parseFloat($(this).val());
+                    const min = parseFloat($("#node-input-minTempSetpoint").val());
+                    $(this).toggleClass("input-error", isNaN(val) || val <= min);
+                });
 
-            $("#node-input-initWindow").on("input", function() {
-                const val = parseFloat($(this).val());
-                if (isNaN(val) || val < 0) $(this).addClass("input-error");
-                else $(this).removeClass("input-error");
-            });
+                $("#node-input-initWindow").on("input", function() {
+                    const val = parseFloat($(this).val());
+                    $(this).toggleClass("input-error", isNaN(val) || val < 0);
+                });
+
+                // Validate split setpoints
+                function validateSplitSetpoints() {
+                    if ($("#node-input-algorithm").val() !== "split") {
+                        $("#split-setpoint-warning").hide();
+                        $("#node-input-heatingSetpoint").removeClass("input-error");
+                        $("#node-input-coolingSetpoint").removeClass("input-error");
+                        return;
+                    }
+                    const heatingSetpoint = parseFloat($("#node-input-heatingSetpoint").typedInput("value"));
+                    const coolingSetpoint = parseFloat($("#node-input-coolingSetpoint").typedInput("value"));
+                    const isInvalid = isNaN(heatingSetpoint) || isNaN(coolingSetpoint) || coolingSetpoint <= heatingSetpoint;
+                    $("#node-input-heatingSetpoint").toggleClass("input-error", isInvalid);
+                    $("#node-input-coolingSetpoint").toggleClass("input-error", isInvalid);
+                    $("#split-setpoint-warning").toggle(isInvalid);
+                }
+
+                $("#node-input-heatingSetpoint").typedInput("on", "change", validateSplitSetpoints);
+                $("#node-input-coolingSetpoint").typedInput("on", "change", validateSplitSetpoints);
+            } catch (err) {
+                console.error("Error in changeover-block oneditprepare:", err);
+            }
         },
         oneditsave: function() {
-            // Save typed input types and values
             $("#node-input-setpointType").val($("#node-input-setpoint").typedInput("type"));
             $("#node-input-setpoint").val($("#node-input-setpoint").typedInput("value"));
             $("#node-input-heatingSetpointType").val($("#node-input-heatingSetpoint").typedInput("type"));
@@ -253,6 +264,49 @@
             $("#node-input-coolingSetpoint").val($("#node-input-coolingSetpoint").typedInput("value"));
             $("#node-input-swapTimeType").val($("#node-input-swapTime").typedInput("type"));
             $("#node-input-swapTime").val($("#node-input-swapTime").typedInput("value"));
+        },
+        oneditvalidate: function() {
+            const deadband = parseFloat($("#node-input-deadband").val());
+            const extent = parseFloat($("#node-input-extent").val());
+            const swapTime = parseFloat($("#node-input-swapTime").typedInput("value"));
+            const minTemp = parseFloat($("#node-input-minTempSetpoint").val());
+            const maxTemp = parseFloat($("#node-input-maxTempSetpoint").val());
+            const initWindow = parseFloat($("#node-input-initWindow").val());
+
+            if ($("#node-input-algorithm").val() === "single") {
+                if (isNaN(deadband) || deadband <= 0) {
+                    $("#node-input-deadband").addClass("input-error");
+                    return false;
+                }
+            } else {
+                const heatingSetpoint = parseFloat($("#node-input-heatingSetpoint").typedInput("value"));
+                const coolingSetpoint = parseFloat($("#node-input-coolingSetpoint").typedInput("value"));
+                if (isNaN(heatingSetpoint) || isNaN(coolingSetpoint) || coolingSetpoint <= heatingSetpoint) {
+                    $("#node-input-heatingSetpoint").addClass("input-error");
+                    $("#node-input-coolingSetpoint").addClass("input-error");
+                    $("#split-setpoint-warning").show();
+                    return false;
+                }
+            }
+
+            if (isNaN(extent) || extent < 0) {
+                $("#node-input-extent").addClass("input-error");
+                return false;
+            }
+            if (isNaN(swapTime) || swapTime < 60) {
+                $("#node-input-swapTime").addClass("input-error");
+                return false;
+            }
+            if (isNaN(minTemp) || isNaN(maxTemp) || minTemp >= maxTemp) {
+                $("#node-input-minTempSetpoint").addClass("input-error");
+                $("#node-input-maxTempSetpoint").addClass("input-error");
+                return false;
+            }
+            if (isNaN(initWindow) || initWindow < 0) {
+                $("#node-input-initWindow").addClass("input-error");
+                return false;
+            }
+            return true;
         }
     });
 </script>
@@ -261,7 +315,7 @@
 Manages HVAC mode switching between heating and cooling based on temperature inputs and setpoint configurations.
 
 ### Inputs
-: context (string) : Configures node settings (`"operationMode"`, `"algorithm"`, `"setpoint"`, `"deadband"`, `"heatingSetpoint"`, `"coolingSetpoint"`, `"anticipator"`, `"swapTime"`, `"minTempSetpoint"`, `"maxTempSetpoint"`, `"minCycleTime"`, `"initWindow"`). Unknown values trigger a warning.
+: context (string) : Configures node settings (`"operationMode"`, `"algorithm"`, `"setpoint"`, `"deadband"`, `"heatingSetpoint"`, `"coolingSetpoint"`, `"extent"`, `"swapTime"`, `"minTempSetpoint"`, `"maxTempSetpoint"`, `"initWindow"`). Unknown values trigger a warning.
 : payload (number | string) : Temperature for mode evaluation; configuration value with `msg.context`.
 
 ### Outputs
@@ -272,27 +326,27 @@ Manages HVAC mode switching between heating and cooling based on temperature inp
 The node supports two algorithms for determining HVAC mode:
 
 - **Single Setpoint**:
-  - Uses a single `setpoint` and `deadband` to define a temperature range.
-  - **Heating** is triggered if the input temperature is below `setpoint - deadband/2 - anticipator`.
-  - **Cooling** is triggered if the temperature exceeds `setpoint + deadband/2 + anticipator`.
-  - Example: With `setpoint=70`, `deadband=2`, `anticipator=0.5`, heating starts below `70 - 2/2 - 0.5 = 68.5`, and cooling starts above `70 + 2/2 + 0.5 = 71.5`.
-  - The `anticipator` proactively adjusts thresholds to prevent overshooting.
+  - Uses a single `setpoint`, `deadband`, and `extent`.
+  - **Heating** is triggered if the input temperature is below `setpoint - deadband/2 - extent`.
+  - **Cooling** is triggered if the temperature exceeds `setpoint + deadband/2 + extent`.
+  - Example: With `setpoint=70`, `deadband=2`, `extent=1`, heating starts below `70 - 2/2 - 1 = 68`, and cooling starts above `70 + 2/2 + 1 = 72`.
+  - The `extent` widens thresholds to prevent nuisance mode changes due to overshoot.
 
 - **Split Setpoint**:
-  - Uses separate `heatingSetpoint` and `coolingSetpoint` for explicit control.
-  - **Heating** is triggered if the temperature is below `heatingSetpoint - anticipator`.
-  - **Cooling** is triggered if the temperature exceeds `coolingSetpoint + anticipator`.
-  - Example: With `heatingSetpoint=68`, `coolingSetpoint=74`, `anticipator=0.5`, heating starts below `68 - 0.5 = 67.5`, and cooling starts above `74 + 0.5 = 74.5`.
+  - Uses separate `heatingSetpoint`, `coolingSetpoint`, and `extent`.
+  - **Heating** is triggered if the temperature is below `heatingSetpoint - extent`.
+  - **Cooling** is triggered if the temperature exceeds `coolingSetpoint + extent`.
+  - Example: With `heatingSetpoint=68`, `coolingSetpoint=74`, `extent=1`, heating starts below `68 - 1 = 67`, and cooling starts above `74 + 1 = 75`.
   - Ensures `coolingSetpoint >= heatingSetpoint` to avoid overlap.
 
 ### Details
 Controls HVAC mode (heating or cooling) based on `msg.payload` temperature compared to setpoints. The node caches the last temperature to make an immediate mode decision after the `initWindow` period, avoiding delays.
 
-- In **auto** mode, the node switches modes based on the algorithm thresholds, requiring the condition to persist for `swapTime` seconds. A countdown is shown (e.g., `pending: cooling in 120s`).
+- In **auto** mode, the node switches modes based on the algorithm thresholds, requiring the condition to persist for `swapTime` seconds (minimum 60s). A countdown is shown (e.g., `pending: cooling in 120s`).
 - In **heat** or **cool** mode, the node locks to heating or cooling, respectively, ignoring temperature inputs.
-- The `anticipator` adjusts thresholds to proactively switch modes, reducing overshooting.
+- The `extent` widens switching thresholds to prevent unnecessary mode changes.
 - Configuration options can be set via the editor or `msg.context` (e.g., `{ context: "setpoint", payload: 72 }`).
-- Runtime changes are displayed in "Changed Runtime Values" if different from defaults.
+- Effective setpoints (`effectiveHeatingThreshold`, `effectiveCoolingThreshold`) are always displayed in "Effective Setpoints" for both new and active nodes, showing the calculated mode-switching thresholds.
 - State (`currentMode`, `lastTemperature`) persists across redeployments.
 
 ### Error Handling
@@ -302,7 +356,7 @@ Controls HVAC mode (heating or cooling) based on `msg.payload` temperature compa
 - Invalid temperature (non-numeric): No output, status: `red ring, invalid temperature`.
 - Invalid `operationMode` (not `auto`, `heat`, `cool`): No output, status: `red ring, invalid operationMode`.
 - Invalid `algorithm` (not `single`, `split`): No output, status: `red ring, invalid algorithm`.
-- Invalid numeric context (e.g., non-numeric, out-of-range): No output, status: `red ring, invalid X`.
+- Invalid numeric context (e.g., non-numeric, out-of-range, `swapTime < 60`): No output, status: `red ring, invalid X`.
 - Wrong context for algorithm (e.g., `setpoint` in split): No output, status: `red ring, X not used in Y algorithm`.
 - Unknown `msg.context`: No output, status: `yellow ring, unknown context`.
 
