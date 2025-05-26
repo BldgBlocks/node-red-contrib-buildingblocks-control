@@ -30,8 +30,6 @@ module.exports = function(RED) {
             isHeating: config.isHeating === true
         };
 
-        console.log("TstatBlockNode init anticipator:", node.runtime.anticipator, "config:", config.anticipator);
-
         let above = false;
         let below = false;
         let lastAbove = false;
@@ -337,8 +335,6 @@ module.exports = function(RED) {
                 return;
             }
 
-            console.log("TstatBlockNode input:", { input, isHeating, anticipator: node.runtime.anticipator });
-
             if (node.runtime.algorithm === "single") {
                 node.runtime.setpoint = utils.validateProperty(
                     node.runtime.setpoint, node.runtime.setpointType, 70, { name: "setpoint" }, msg, node
@@ -555,7 +551,6 @@ module.exports = function(RED) {
             runtime.heatingOn = node?.runtime?.heatingOn !== undefined ? node.runtime.heatingOn : parseFloat(node?.heatingOn) || 66;
             runtime.heatingOnType = node?.runtime?.heatingOnType || node?.heatingOnType || "num";
         }
-        console.log("Runtime endpoint anticipator:", runtime.anticipator);
         res.json(runtime);
     });
 };

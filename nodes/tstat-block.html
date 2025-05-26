@@ -137,8 +137,6 @@
                 $("#node-input-algorithm").val(node.algorithm || "single");
                 $("#node-input-isHeating").prop("checked", node.isHeating === true);
 
-                console.log("oneditprepare anticipator:", node.anticipator, "type:", node.anticipatorType);
-
                 const typedInputs = [
                     { id: "node-input-setpoint", typeId: "node-input-setpointType", defaultValue: "70", defaultType: "num" },
                     { id: "node-input-heatingSetpoint", typeId: "node-input-heatingSetpointType", defaultValue: "68", defaultType: "num" },
@@ -316,8 +314,6 @@
                     const anticipator = Number(node.anticipator !== undefined ? node.anticipator : (runtime.anticipator || 0));
                     const ignoreCycles = Number(node.ignoreAnticipatorCycles !== undefined ? node.ignoreAnticipatorCycles : (runtime.ignoreAnticipatorCycles || 1));
 
-                    console.log("updateEffectiveSetpoints inputs:", { algorithm, setpoint: runtime.setpoint, diff, anticipator, nodeAnticipator: node.anticipator });
-
                     if (algorithm === "single") {
                         const setpoint = Number(runtime.setpoint !== undefined ? runtime.setpoint : node.setpoint) || 70;
                         const heatingOn = setpoint - diff / 2;
@@ -413,8 +409,6 @@
             $("#node-input-diff").val($("#node-input-diff").typedInput("value"));
             $("#node-input-anticipator").val($("#node-input-anticipator").typedInput("value"));
             $("#node-input-ignoreAnticipatorCycles").val($("#node-input-ignoreAnticipatorCycles").typedInput("value"));
-
-            console.log("oneditsave anticipator:", $("#node-input-anticipator").typedInput("value"), "type:", $("#node-input-anticipator").typedInput("type"));
         },
         oneditvalidate: function() {
             return validateInputs();
@@ -479,7 +473,7 @@ Compares a numeric temperature input (`msg.payload`) against setpoints to contro
 - Invalid message: No output, red status (`invalid message`).
 
 ### Status
-- Green (dot): Configuration updates (e.g., `setpoint: 70.0`, `anticipator: -0.5`, `isHeating: true`).
+- Green (dot): Configuration updates (e.g., `setpoint: 70.0`, `anticipator: 0.5`, `isHeating: true`).
 - Blue (dot): Outputs when state changes (e.g., `in: 65.00, out: heating, above: false, below: true`).
 - Blue (ring): Outputs when state unchanged (e.g., `in: 66.00, out: heating, above: false, below: true`).
 - Red (ring): Errors (e.g., `missing input`, `invalid coolingOff`, `invalid diff, using 2`).

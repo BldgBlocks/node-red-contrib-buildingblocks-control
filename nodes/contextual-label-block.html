@@ -1,7 +1,15 @@
 <script type="text/html" data-template-name="contextual-label-block">
     <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
         <label for="node-input-contextPropertyName" title="Context property to set (e.g., priority, clear, in1)"><i class="fa fa-key"></i> Context Property</label>
         <input type="text" id="node-input-contextPropertyName" placeholder="e.g., priority">
+    </div>
+    <div class="form-row">
+        <label for="node-input-removeLabel" title="Remove msg.context instead of setting it"><i class="fa fa-trash"></i> Remove Context</label>
+        <input type="checkbox" id="node-input-removeLabel" style="width: auto; vertical-align: middle;">
     </div>
     <div class="form-row">
         <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
@@ -14,11 +22,13 @@
         category: "control",
         color: "#301934",
         defaults: {
+            name: { value: "" },
             contextPropertyName: { 
                 value: "context", 
                 required: true, 
                 validate: function(v) { return v && typeof v === "string" && v.trim().length > 0; } 
-            }
+            },
+            removeLabel: { value: false }
         },
         inputs: 1,
         outputs: 1,
@@ -27,14 +37,17 @@
         icon: "font-awesome/fa-tag",
         paletteLabel: "contextual label",
         label: function() {
-            return `contextual ${this.contextPropertyName || "context"}`;
+            if (this.name) return this.name;
+            return this.removeLabel ? "remove context" : `contextual ${this.contextPropertyName || "context"}`;
         },
         oneditprepare: function() {
             const node = this;
             const id = this.id;
 
-            // Initialize input
+            // Initialize inputs
+            $("#node-input-name").val(node.name || "");
             $("#node-input-contextPropertyName").val(node.contextPropertyName || "context");
+            $("#node-input-removeLabel").prop("checked", node.removeLabel || false);
 
             // Validate contextPropertyName input
             $("#node-input-contextPropertyName").on("input", function() {
@@ -50,8 +63,12 @@
             $.getJSON(`/contextual-label-block-runtime/${id}`, function(data) {
                 const runtime = data || {};
                 const changes = [];
+                if (runtime.name) changes.push(`name: ${runtime.name}`);
                 if (runtime.contextPropertyName !== undefined && runtime.contextPropertyName !== node.contextPropertyName) {
                     changes.push(`contextPropertyName: ${runtime.contextPropertyName}`);
+                }
+                if (runtime.removeLabel !== undefined && runtime.removeLabel !== node.removeLabel) {
+                    changes.push(`removeLabel: ${runtime.removeLabel}`);
                 }
                 const displayText = changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None";
                 $("#node-runtime-changes").text(displayText);
@@ -74,29 +91,29 @@
 </script>
 
 <script type="text/markdown" data-help-name="contextual-label-block">
-Attaches a context property to a message, passing through the existing message.
+Sets or removes the msg.context property in a message.
 
 ### Inputs
 : payload (any) : Input message payload, passed through unchanged.
 : *other* (any) : Other message properties, passed through unchanged.
 
 ### Outputs
-: context (string) : Configured context property (e.g., `priority`, `clear`, `in1`).
+: context (string) : Configured context property (e.g., `priority`, `clear`, `in1`) if set, or absent if removed.
 : payload (any) : Original input `msg.payload`, unchanged.
 : *other* (any) : Other input message properties, unchanged.
 
 ### Details
-Sets `msg.context` to a configured context property (e.g., `priority`, `clear`, `in1`) without modifying `msg.payload` or other message properties. The context property is set via the editor and applied on redeployment, with no runtime configuration. The node’s display name is `contextual <contextProperty>`. Runtime value of `contextPropertyName` is shown in "Changed Runtime Values" if different from the editor configuration.
+Either sets `msg.context` to a configured property (e.g., `priority`, `clear`, `in1`) or removes `msg.context` based on the `Remove Context` toggle. When `Remove Context` is disabled (default), the node sets `msg.context` to the configured `contextPropertyName` without modifying other message properties. When enabled, it deletes `msg.context` from the input message. Configuration is set via the editor (`name`, `contextPropertyName`, `removeLabel`) with no runtime configuration support. The node’s display name is the user-defined `name`, `contextual <contextPropertyName>` (set mode), or `remove context` (remove mode). Runtime values (`name`, `contextPropertyName`, `removeLabel`) are shown in "Changed Runtime Values" if non-default (e.g., `name ≠ ""`, `contextPropertyName ≠ context`, `removeLabel = true`).
 
 ### Error Handling
-- Invalid message (e.g., `msg` undefined): No output, red status (`invalid message`).
-- Invalid context property (empty or non-string): Uses default (`context`), red status (`invalid context property, using context`).
+- Missing `msg`: No output, red status (`missing message`).
+- Invalid `contextPropertyName` (empty or non-string): Uses default (`context`), red status (`invalid context property, using context`).
 
 ### Status
-- Green (dot): Configuration updates (e.g., `contextPropertyName: priority`).
-- Blue (dot): Outputs when input changes (e.g., `in: 5, out: priority`).
+- Green (dot): Configuration updates (e.g., `mode: set, contextPropertyName: priority`, `mode: remove`).
+- Blue (dot): Outputs when input changes (e.g., `in: 5, out: priority`, `in: 5, out: removed context`).
 - Blue (ring): Outputs when input unchanged (e.g., `in: 5, out: priority` if same as previous).
-- Red (ring): Errors (e.g., `invalid message`, `invalid context property, using context`).
+- Red (ring): Errors (e.g., `missing message`, `invalid context property, using context`).
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

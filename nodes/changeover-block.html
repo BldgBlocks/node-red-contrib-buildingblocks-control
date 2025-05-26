@@ -35,7 +35,7 @@
         </div>
     </div>
     <div class="form-row">
-        <label for="node-input-extent" title="Temperature offset for mode switching thresholds (non-negative number)"><i class="fa fa-tachometer"></i> Extent</label>
+        <label for="node-input-extent" title="Extra buffer mode switching thresholds (non-negative number)"><i class="fa fa-tachometer"></i> Extent</label>
         <input type="text" id="node-input-extent" placeholder="1">
     </div>
     <div class="form-row">
@@ -344,7 +344,7 @@ Controls HVAC mode (heating or cooling) based on `msg.payload` temperature compa
 
 - In **auto** mode, the node switches modes based on the algorithm thresholds, requiring the condition to persist for `swapTime` seconds (minimum 60s). A countdown is shown (e.g., `pending: cooling in 120s`).
 - In **heat** or **cool** mode, the node locks to heating or cooling, respectively, ignoring temperature inputs.
-- The `extent` widens switching thresholds to prevent unnecessary mode changes.
+- The `extent` widens switching thresholds to prevent unnecessary mode changes while allowing sharing of `deadband` with global variables and other nodes.
 - Configuration options can be set via the editor or `msg.context` (e.g., `{ context: "setpoint", payload: 72 }`).
 - Effective setpoints (`effectiveHeatingThreshold`, `effectiveCoolingThreshold`) are always displayed in "Effective Setpoints" for both new and active nodes, showing the calculated mode-switching thresholds.
 - State (`currentMode`, `lastTemperature`) persists across redeployments.

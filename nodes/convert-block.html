@@ -1,0 +1,120 @@
+<script type="text/html" data-template-name="convert-block">
+    <div class="form-row">
+        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-conversion" title="Select the unit conversion to perform"><i class="fa fa-exchange"></i> Conversion</label>
+        <select id="node-input-conversion">
+            <optgroup label="Temperature">
+                <option value="C to F">C to F (Celsius to Fahrenheit)</option>
+                <option value="F to C">F to C (Fahrenheit to Celsius)</option>
+            </optgroup>
+            <optgroup label="Pressure">
+                <option value="Pa to inH₂O">Pa to inH₂O (Pascal to Inches of Water)</option>
+                <option value="inH₂O to Pa">inH₂O to Pa (Inches of Water to Pascal)</option>
+                <option value="Pa to inHg">Pa to inHg (Pascal to Inches of Mercury)</option>
+                <option value="inHg to Pa">inHg to Pa (Inches of Mercury to Pascal)</option>
+                <option value="Pa to bar">Pa to bar (Pascal to Bar)</option>
+                <option value="bar to Pa">bar to Pa (Bar to Pascal)</option>
+                <option value="Pa to psi">Pa to psi (Pascal to PSI)</option>
+                <option value="psi to Pa">psi to Pa (PSI to Pascal)</option>
+            </optgroup>
+        </select>
+    </div>
+    <div class="form-row">
+        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
+        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
+    </div>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType("convert-block", {
+        category: "control",
+        color: "#301934",
+        defaults: {
+            name: { value: "" },
+            conversion: { value: "C to F", required: true }
+        },
+        inputs: 1,
+        outputs: 1,
+        inputLabels: ["input"],
+        outputLabels: ["converted output"],
+        icon: "font-awesome/fa-exchange",
+        paletteLabel: "convert",
+        label: function() {
+            return this.name || `Convert (${this.conversion})`;
+        },
+        oneditprepare: function() {
+            const node = this;
+            $("#node-input-name").val(node.name || "");
+            $("#node-input-conversion").val(node.conversion || "C to F");
+
+            // Fetch runtime values
+            $.getJSON(`/convert-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
+                const changes = [];
+                if (data.name) changes.push(`name: ${data.name}`);
+                if (data.conversion && data.conversion !== node.conversion) {
+                    changes.push(`conversion: ${data.conversion}`);
+                }
+                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
+            }).fail(function() {
+                $("#node-runtime-changes").text("Changed Values: Unknown");
+            });
+        },
+        oneditsave: function() {
+            // Standard config properties are automatically saved
+        },
+        oneditvalidate: function() {
+            const conversion = $("#node-input-conversion").val();
+            const validConversions = ["F to C", "C to F", "Pa to inH₂O", "inH₂O to Pa", "Pa to inHg", "inHg to Pa", "Pa to bar", "bar to Pa", "Pa to psi", "psi to Pa"];
+            return validConversions.includes(conversion);
+        }
+    });
+</script>
+
+<script type="text/markdown" data-help-name="convert-block">
+Converts numeric input payload between temperature or pressure units.
+
+### Inputs
+: context (string) : Configures conversion (`"conversion"`). Unmatched values ignored.
+: payload (number) : Numeric value to convert (e.g., temperature in °C or °F, pressure in Pa).
+
+### Outputs
+: payload (number) : Converted value (e.g., °C to °F, Pa to inH₂O).
+: *other* (any) : Other input properties preserved.
+
+### Details
+Converts `msg.payload` between units based on the selected conversion, supporting temperature (Celsius to Fahrenheit, Fahrenheit to Celsius) and pressure (Pascal, inches of water, inches of mercury, bar, psi) conversions. Configurable via editor (`name`, `conversion`) or `msg.context = "conversion"` with valid conversion string (e.g., `C to F`). Outputs the input message with `msg.payload` updated to the converted value, preserving other properties. Invalid inputs (non-numeric `msg.payload`, invalid conversion) prevent output and show error status. Runtime values (`name`, `conversion`) are shown in "Changed Runtime Values" if non-default (e.g., `name ≠ ""`, `conversion ≠ C to F`).
+
+### Supported Conversions
+- Temperature:
+  - `C to F`: Celsius to Fahrenheit (`°F = °C * 9/5 + 32`).
+  - `F to C`: Fahrenheit to Celsius (`°C = (°F - 32) * 5/9`).
+- Pressure:
+  - `Pa to inH₂O`: Pascal to inches of water (`inH₂O = Pa * 0.00401463`).
+  - `inH₂O to Pa`: Inches of water to Pascal (`Pa = inH₂O / 0.00401463`).
+  - `Pa to inHg`: Pascal to inches of mercury (`inHg = Pa * 0.0002953`).
+  - `inHg to Pa`: Inches of mercury to Pascal (`Pa = inHg / 0.0002953`).
+  - `Pa to bar`: Pascal to bar (`bar = Pa * 0.00001`).
+  - `bar to Pa`: Bar to Pascal (`Pa = bar / 0.00001`).
+  - `Pa to psi`: Pascal to psi (`psi = Pa * 0.000145038`).
+  - `psi to Pa`: Psi to Pascal (`Pa = psi / 0.000145038`).
+
+### Error Handling
+- Missing `msg`: No output, red status (`missing message`).
+- Missing `msg.payload`: No output, red status (`missing payload`).
+- Invalid `msg.payload` (non-numeric): No output, red status (`invalid payload`).
+- Invalid `msg.context` for configuration: No output, red status (`invalid conversion`).
+- Unknown `msg.context`: Ignored, processes `msg.payload` if valid.
+
+### Status
+- Green (dot): Configuration (e.g., `conversion: C to F`).
+- Blue (dot): Outputs (e.g., `in: 20 °C out: 68 °F`, `in: 100 Pa out: 0.40 inH₂O`).
+- Red (ring): Errors (e.g., `missing payload`, `invalid conversion`).
+- Yellow (ring): Warnings (e.g., `unknown context`).
+
+### References
+- [Node-RED Documentation](https://nodered.org/docs/)
+- [GitHub Repository](https://github.com/BldgBlocks/node-red-contrib-buildingblocks-control.git)
+</script>

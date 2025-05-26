@@ -26,7 +26,7 @@
         inputs: 1,
         outputs: 4,
         inputLabels: ["input"],
-        outputLabels: ["stage1", "stage2", "stage3", "reset"],
+        outputLabels: ["stage1", "stage2", "stage3", "stage4"],
         icon: "font-awesome/fa-hourglass-half",
         paletteLabel: "time sequence",
         label: function() {
@@ -67,10 +67,10 @@ Triggers a sequence of outputs with configurable delays, ignoring inputs during 
 : payload (any | number | boolean) : Value to pass through outputs, number for delay, boolean (true) for reset.
 
 ### Outputs
-: stage1 (any) : Input message with `msg.stage = 1` (immediate).
-: stage2 (any) : Input message with `msg.stage = 2` (after delay).
-: stage3 (any) : Input message with `msg.stage = 3` (after 2x delay).
-: reset (any | boolean) : Input message with `msg.stage = 4` (after 3x delay); `{ payload: false }` on reset.
+: stage1 (any) : The input message with `msg.stage = 1` (immediate).
+: stage2 (any) : The input message with `msg.stage = 2` (after delay).
+: stage3 (any) : The input message with `msg.stage = 3` (after 2x delay).
+: stage4 (any) : The input message with `msg.stage = 4` (after 2x delay).
 : Other properties (e.g., `msg.topic`) from the input message are preserved.
 
 ### Properties

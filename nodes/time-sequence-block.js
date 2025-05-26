@@ -92,7 +92,7 @@ module.exports = function(RED) {
 
             // Process input
             if (node.runtime.stage !== 0) {
-                node.status({ fill: "yellow", shape: "ring", text: "sequence running" });
+                node.status({ fill: "yellow", shape: "ring", text: "sequence already running" });
                 if (done) done();
                 return;
             }
@@ -104,7 +104,7 @@ module.exports = function(RED) {
             // Output sequence
             const sendNextOutput = () => {
                 if (node.runtime.stage === 0) return;
-                const stageLabels = ["stage 1", "stage 2", "stage 3", "reset"];
+                const stageLabels = ["stage 1", "stage 2", "stage 3", "stage 4"];
                 const outputs = [null, null, null, null];
                 cloneMsg.stage = node.runtime.stage;
                 outputs[node.runtime.stage - 1] = cloneMsg;
