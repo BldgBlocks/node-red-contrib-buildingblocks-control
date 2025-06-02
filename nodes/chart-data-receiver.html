@@ -11,6 +11,14 @@
         <label for="node-input-seriesName"><i class="fa fa-list"></i> Series</label>
         <input type="text" id="node-input-seriesName" style="width:70%;">
     </div>
+    <div class="form-row">
+        <label for="node-input-storageType"><i class="fa fa-database"></i> Storage Type</label>
+        <select id="node-input-storageType">
+            <option value="memory">Memory (Flow Context)</option>
+            <option value="influxdb">InfluxDB</option>
+            <option value="custom">Custom</option>
+        </select>
+    </div>
 </script>
 
 <script type="text/javascript">
@@ -20,10 +28,11 @@
         defaults: {
             chartConfig: { value: "", type: "chart-config", required: true },
             seriesName: { value: "" },
+            storageType: { value: "memory" },
             name: { value: "" }
         },
         inputs: 1,
-        outputs: 0,
+        outputs: 1,
         icon: "file.png",
         label: function() {
             return this.name || this.seriesName || "chart-data-receiver";
@@ -31,7 +40,9 @@
         oneditprepare: function() {
             const node = this;
             const seriesInput = $("#node-input-seriesName");
+            const storageType = $("#node-input-storageType");
 
+            // Series selection
             seriesInput.typedInput({
                 types: [{
                     value: "series",
@@ -62,10 +73,14 @@
             if (node.chartConfig) {
                 updateSeriesOptions(node.chartConfig);
             }
+
+            // Storage type handling
+            storageType.val(node.storageType || 'memory');
         },
         oneditsave: function() {
             const seriesInput = $("#node-input-seriesName");
             this.seriesName = seriesInput.typedInput('value');
+            this.storageType = $("#node-input-storageType").val();
         }
     });
 </script>

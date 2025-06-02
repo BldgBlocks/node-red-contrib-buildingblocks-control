@@ -56,7 +56,10 @@
         "units-block": "nodes/units-block.js",
         "chart-config": "nodes/chart-config.js",
         "chart-data-receiver": "nodes/chart-data-receiver.js",
-        "history-template": "nodes/history-template.js"
+        "history-template": "nodes/history-template.js",
+        "influxdb-config": "nodes/influxdb-config.js",
+        "influxdb-output-http-write": "nodes/influxdb-output-http-write.js",
+        "influxdb-query": "nodes/influxdb-query.js"
       }
   },
   "author": "buildingblocks",
