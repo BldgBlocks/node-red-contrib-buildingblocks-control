@@ -30,11 +30,6 @@ module.exports = function(RED) {
 
             // Handle context updates
             if (msg.hasOwnProperty("context")) {
-                if (!msg.hasOwnProperty("payload")) {
-                    node.status({ fill: "red", shape: "ring", text: `missing payload for ${msg.context}` });
-                    if (done) done();
-                    return;
-                }
                 if (typeof msg.context !== "string") {
                     node.status({ fill: "red", shape: "ring", text: "invalid context" });
                     if (done) done();
@@ -42,6 +37,11 @@ module.exports = function(RED) {
                 }
                 switch (msg.context) {
                     case "delay":
+                        if (!msg.hasOwnProperty("payload")) {
+                            node.status({ fill: "red", shape: "ring", text: `missing payload for ${msg.context}` });
+                            if (done) done();
+                            return;
+                        }
                         const delayValue = parseFloat(msg.payload);
                         if (isNaN(delayValue) || delayValue < 0 || !isFinite(delayValue)) {
                             node.status({ fill: "red", shape: "ring", text: "invalid delay" });
@@ -54,8 +54,14 @@ module.exports = function(RED) {
                             shape: "dot",
                             text: `delay: ${node.runtime.delay.toFixed(2)} ms`
                         });
-                        break;
+                        if (done) done();
+                        return;
                     case "reset":
+                        if (!msg.hasOwnProperty("payload")) {
+                            node.status({ fill: "red", shape: "ring", text: `missing payload for ${msg.context}` });
+                            if (done) done();
+                            return;
+                        }
                         if (typeof msg.payload !== "boolean" || !msg.payload) {
                             node.status({ fill: "red", shape: "ring", text: "invalid reset" });
                             if (done) done();
@@ -73,14 +79,11 @@ module.exports = function(RED) {
                             text: "state reset"
                         });
                         send([resetMsg, resetMsg, resetMsg, resetMsg]);
-                        break;
-                    default:
-                        node.status({ fill: "yellow", shape: "ring", text: "unknown context" });
-                        if (done) done("Unknown context");
+                        if (done) done();
                         return;
+                    default:
+                        break;
                 }
-                if (done) done();
-                return;
             }
 
             // Validate input

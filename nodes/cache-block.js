@@ -27,15 +27,15 @@ module.exports = function(RED) {
                 return;
             }
 
-            // Validate payload
-            if (!msg.hasOwnProperty("payload")) {
-                node.status({ fill: "red", shape: "ring", text: "missing payload" });
-                if (done) done();
-                return;
-            }
-
             switch (msg.context) {
                 case "update":
+                    // Validate payload
+                    if (!msg.hasOwnProperty("payload")) {
+                        node.status({ fill: "red", shape: "ring", text: "missing payload" });
+                        if (done) done();
+                        return;
+                    }
+
                     node.runtime.cachedMessage = RED.util.cloneMessage(msg);
                     node.status({
                         fill: "green",
@@ -69,11 +69,19 @@ module.exports = function(RED) {
                     if (done) done();
                     return;
                 case "reset":
+                    // Validate payload
+                    if (!msg.hasOwnProperty("payload")) {
+                        node.status({ fill: "red", shape: "ring", text: "missing payload" });
+                        if (done) done();
+                        return;
+                    }
+
                     if (typeof msg.payload !== "boolean" || !msg.payload) {
                         node.status({ fill: "red", shape: "ring", text: "invalid reset" });
                         if (done) done();
                         return;
                     }
+                    
                     node.runtime.cachedMessage = null;
                     node.status({
                         fill: "green",
