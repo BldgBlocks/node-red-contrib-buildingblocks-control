@@ -6,8 +6,18 @@ module.exports = function(RED) {
         // Initialize runtime state
         node.runtime = {
             name: config.name || "",
-            upperLimit: parseFloat(config.upperLimit) || 50,
-            lowerLimit: parseFloat(config.lowerLimit) || 30,
+            upperLimit: RED.util.evaluateNodeProperty(
+                config.upperLimit, 
+                config.upperLimitType, 
+                node, 
+                msg
+            ),
+            lowerLimit: RED.util.evaluateNodeProperty(
+                config.lowerLimit, 
+                config.lowerLimitType, 
+                node, 
+                msg
+            ),
             state: "within"
         };
 

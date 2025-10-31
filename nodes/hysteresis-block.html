@@ -7,10 +7,12 @@
     <div class="form-row">
         <label for="node-input-upperLimit" title="Upper threshold for switching to above state (number)"><i class="fa fa-arrow-up"></i> Upper Limit</label>
         <input type="number" id="node-input-upperLimit" placeholder="50" min="0" step="any">
+        <input type="hidden" id="node-input-upperLimitType">
     </div>
     <div class="form-row">
         <label for="node-input-lowerLimit" title="Lower threshold for switching to below state (number)"><i class="fa fa-arrow-down"></i> Lower Limit</label>
         <input type="number" id="node-input-lowerLimit" placeholder="30" min="0" step="any">
+        <input type="hidden" id="node-input-upperLimitType">
     </div>
     <div class="form-row">
         <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
@@ -26,7 +28,9 @@
         defaults: {
             name: { value: "" },
             upperLimit: { value: 50, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
-            lowerLimit: { value: 30, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } }
+            upperLimitType: { value: "num" },
+            lowerLimit: { value: 30, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
+            lowerLimitType: { value: "num" }
         },
         inputs: 1,
         outputs: 3,
@@ -39,9 +43,26 @@
         },
         oneditprepare: function() {
             const node = this;
+
+            try {
+                // Initialize typed inputs
+                $("#node-input-upperLimit").typedInput({
+                    default: "num",
+                    types: ["num", "msg", "flow", "global"],
+                    typeField: "#node-input-upperLimitType"
+                }).typedInput("type", node.upperLimitType || "num").typedInput("value", node.upperLimit || "50");
+
+                $("#node-input-lowerLimit").typedInput({
+                    default: "num",
+                    types: ["num", "msg", "flow", "global"],
+                    typeField: "#node-input-lowerLimitType"
+                }).typedInput("type", node.lowerLimitType || "num").typedInput("value", node.lowerLimit || "30");
+
+            } catch (err) {
+                console.error("Error in changeover-block oneditprepare:", err);
+            }
+
             $("#node-input-name").val(node.name || "");
-            $("#node-input-upperLimit").val(node.upperLimit || 50);
-            $("#node-input-lowerLimit").val(node.lowerLimit || 30);
 
             // Ensure limits are numbers for comparison
             const editorUpperLimit = parseFloat(node.upperLimit) || 50;
@@ -67,7 +88,7 @@
         oneditvalidate: function() {
             const upper = parseFloat($("#node-input-upperLimit").val());
             const lower = parseFloat($("#node-input-lowerLimit").val());
-            return !isNaN(upper) && !isNaN(lower) && upper > lower && upper >= 0 && lower >= 0;
+            return !isNaN(upper) && !isNaN(lower) && upper > lower;
         }
     });
 </script>
