@@ -6,18 +6,8 @@ module.exports = function(RED) {
         // Initialize runtime state
         node.runtime = {
             name: config.name || "",
-            upperLimit: RED.util.evaluateNodeProperty(
-                config.upperLimit, 
-                config.upperLimitType, 
-                node, 
-                msg
-            ),
-            lowerLimit: RED.util.evaluateNodeProperty(
-                config.lowerLimit, 
-                config.lowerLimitType, 
-                node, 
-                msg
-            ),
+            upperLimit: 50,
+            lowerLimit: 30,
             state: "within"
         };
 
@@ -35,6 +25,26 @@ module.exports = function(RED) {
             if (!msg) {
                 node.status({ fill: "red", shape: "ring", text: "invalid message" });
                 if (done) done();
+                return;
+            }
+
+            // Evaluate properties each time a message is received
+            try {
+                node.runtime.upperLimit = RED.util.evaluateNodeProperty(
+                    config.upperLimit, 
+                    config.upperLimitType, 
+                    node, 
+                    msg
+                );
+                node.runtime.lowerLimit = RED.util.evaluateNodeProperty(
+                    config.lowerLimit, 
+                    config.lowerLimitType, 
+                    node, 
+                    msg
+                );
+            } catch(err) {
+                node.status({ fill: "red", shape: "ring", text: "error evaluating limits" });
+                if (done) done(err);
                 return;
             }
 
