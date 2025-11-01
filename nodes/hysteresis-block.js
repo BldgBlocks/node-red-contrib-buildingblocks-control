@@ -56,7 +56,7 @@ module.exports = function(RED) {
                     return;
                 }
                 const value = parseFloat(msg.payload);
-                if (isNaN(value) || value < 0) {
+                if (isNaN(value)) {
                     node.status({ fill: "red", shape: "ring", text: `invalid ${msg.context}` });
                     if (done) done();
                     return;
@@ -135,7 +135,7 @@ module.exports = function(RED) {
         node.on("close", function(done) {
             node.runtime.upperLimit = parseFloat(config.upperLimit) || 50;
             node.runtime.lowerLimit = parseFloat(config.lowerLimit) || 30;
-            if (isNaN(node.runtime.upperLimit) || isNaN(node.runtime.lowerLimit) || node.runtime.upperLimit <= node.runtime.lowerLimit || node.runtime.upperLimit < 0 || node.runtime.lowerLimit < 0) {
+            if (isNaN(node.runtime.upperLimit) || isNaN(node.runtime.lowerLimit) || node.runtime.upperLimit <= node.runtime.lowerLimit) {
                 node.runtime.upperLimit = 50;
                 node.runtime.lowerLimit = 30;
             }

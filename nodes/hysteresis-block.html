@@ -6,12 +6,12 @@
     </div>
     <div class="form-row">
         <label for="node-input-upperLimit" title="Upper threshold for switching to above state (number)"><i class="fa fa-arrow-up"></i> Upper Limit</label>
-        <input type="text" id="node-input-upperLimit" placeholder="50" min="0" step="any">
+        <input type="text" id="node-input-upperLimit" placeholder="50" step="any">
         <input type="hidden" id="node-input-upperLimitType">
     </div>
     <div class="form-row">
         <label for="node-input-lowerLimit" title="Lower threshold for switching to below state (number)"><i class="fa fa-arrow-down"></i> Lower Limit</label>
-        <input type="text" id="node-input-lowerLimit" placeholder="30" min="0" step="any">
+        <input type="text" id="node-input-lowerLimit" placeholder="30" step="any">
         <input type="hidden" id="node-input-lowerLimitType">
     </div>
     <div class="form-row">
@@ -100,7 +100,7 @@
 
 <!-- Help Section -->
 <script type="text/markdown" data-help-name="hysteresis-block">
-Evaluates numeric input against limits with hysteresis.
+Evaluates numeric input against limits providing range for hysteresis.
 
 ### Inputs
 : context (string) : Configuration commands - thresholds (`"upperLimit"`, `"lowerLimit"`). Unmatched values trigger error.
@@ -117,11 +117,11 @@ Evaluates numeric input against limits with hysteresis.
 : lowerLimit (number) : Lower threshold for switching to below state (≥ 0, < upperLimit). Default: 30.
 
 ### Details
-Evaluates payload against `upperLimit` and `lowerLimit` with hysteresis, outputting new messages with `true` on one 
-port (above, within, or below) and `false` on others. Uses hysteresis remains in "above" state until `msg.payload < lowerLimit`, "below" 
+Evaluates payload against `upperLimit` and `lowerLimit`,
+Remains in "above" state until `msg.payload < lowerLimit`, "below" 
 until `msg.payload > upperLimit`, or "within" until crossing a threshold. 
 
-Outputs on every valid input.
+Outputs on each port with the respective value on every valid input.
 
 ### Status
 - Green (dot): Configuration (e.g., `upperLimit: 50`, `lowerLimit: 30`).
