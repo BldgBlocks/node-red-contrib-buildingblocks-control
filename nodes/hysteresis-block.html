@@ -1,127 +1,137 @@
 <!-- UI Template Section: Defines the edit dialog -->
 <script type="text/html" data-template-name="hysteresis-block">
     <div class="form-row">
-        <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
     <div class="form-row">
-        <label for="node-input-upperLimit" title="Upper threshold for switching to above state (number)"><i class="fa fa-arrow-up"></i> Upper Limit</label>
-        <input type="text" id="node-input-upperLimit" placeholder="50" step="any">
+        <label for="node-input-upperLimit"><i class="fa fa-arrow-up"></i> Upper Limit (turn on)</label>
+        <input type="text" id="node-input-upperLimit" placeholder="50">
         <input type="hidden" id="node-input-upperLimitType">
     </div>
     <div class="form-row">
-        <label for="node-input-lowerLimit" title="Lower threshold for switching to below state (number)"><i class="fa fa-arrow-down"></i> Lower Limit</label>
-        <input type="text" id="node-input-lowerLimit" placeholder="30" step="any">
+        <label for="node-input-upperLimitThreshold"><i class="fa fa-arrows-h"></i> Upper Differential (turn off)</label>
+        <input type="text" id="node-input-upperLimitThreshold" placeholder="2">
+        <input type="hidden" id="node-input-upperLimitThresholdType">
+    </div>
+    <div class="form-row">
+        <label for="node-input-lowerLimit"><i class="fa fa-arrow-down"></i> Lower Limit (turn on)</label>
+        <input type="text" id="node-input-lowerLimit" placeholder="30">
         <input type="hidden" id="node-input-lowerLimitType">
     </div>
     <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
+        <label for="node-input-lowerLimitThreshold"><i class="fa fa-arrows-h"></i> Lower Differential (turn off)</label>
+        <input type="text" id="node-input-lowerLimitThreshold" placeholder="2">
+        <input type="hidden" id="node-input-lowerLimitThresholdType">
     </div>
 </script>
+
 
 <!-- JavaScript Section: Registers the node and handles editor logic -->
 <script type="text/javascript">
     RED.nodes.registerType("hysteresis-block", {
-        category: "control",
-        color: "#301934",
-        defaults: {
-            name: { value: "" },
-            upperLimit: { value: 50, required: true },
-            upperLimitType: { value: "num" },
-            lowerLimit: { value: 30, required: true },
-            lowerLimitType: { value: "num" }
-        },
-        inputs: 1,
-        outputs: 3,
-        inputLabels: ["input"],
-        outputLabels: ["above", "within", "below"],
-        icon: "font-awesome/fa-toggle-on",
-        paletteLabel: "hysteresis",
-        label: function() {
-            return this.name || "hysteresis";
-        },
-        oneditprepare: function() {
-            const node = this;
+    category: "control",
+    color: "#301934",
+    defaults: {
+        name: { value: "" },
+        upperLimit: { value: 50, required: true },
+        upperLimitType: { value: "num" },
+        lowerLimit: { value: 30, required: true },
+        lowerLimitType: { value: "num" },
+        upperLimitThreshold: { value: 2, required: true },
+        upperLimitThresholdType: { value: "num" },
+        lowerLimitThreshold: { value: 2, required: true },
+        lowerLimitThresholdType: { value: "num" }
+    },
+    inputs: 1,
+    outputs: 3,
+    inputLabels: ["input"],
+    outputLabels: ["above", "within", "below"],
+    icon: "font-awesome/fa-toggle-on",
+    paletteLabel: "hysteresis",
+    label: function() {
+        return this.name || "hysteresis";
+    },
+    oneditprepare: function() {
+        const node = this;
 
-            try {
-                // Initialize typed inputs
-                $("#node-input-upperLimit").typedInput({
-                    default: "num",
-                    types: ["num", "msg", "flow", "global"],
-                    typeField: "#node-input-upperLimitType"
-                }).typedInput("type", node.upperLimitType || "num").typedInput("value", node.upperLimit || "50");
+        try {
+            // Initialize typed inputs
+            $("#node-input-upperLimit").typedInput({
+                default: "num",
+                types: ["num", "msg", "flow", "global"],
+                typeField: "#node-input-upperLimitType"
+            }).typedInput("type", node.upperLimitType || "num").typedInput("value", node.upperLimit || "50");
 
-                $("#node-input-lowerLimit").typedInput({
-                    default: "num",
-                    types: ["num", "msg", "flow", "global"],
-                    typeField: "#node-input-lowerLimitType"
-                }).typedInput("type", node.lowerLimitType || "num").typedInput("value", node.lowerLimit || "30");
+            $("#node-input-lowerLimit").typedInput({
+                default: "num",
+                types: ["num", "msg", "flow", "global"],
+                typeField: "#node-input-lowerLimitType"
+            }).typedInput("type", node.lowerLimitType || "num").typedInput("value", node.lowerLimit || "30");
 
-            } catch (err) {
-                console.error("Error in changeover-block oneditprepare:", err);
-            }
+            $("#node-input-upperLimitThreshold").typedInput({
+                default: "num",
+                types: ["num", "msg", "flow", "global"],
+                typeField: "#node-input-upperLimitThresholdType"
+            }).typedInput("type", node.upperLimitThresholdType || "num").typedInput("value", node.upperLimitThreshold || "2");
 
-            $("#node-input-name").val(node.name || "");
+            $("#node-input-lowerLimitThreshold").typedInput({
+                default: "num",
+                types: ["num", "msg", "flow", "global"],
+                typeField: "#node-input-lowerLimitThresholdType"
+            }).typedInput("type", node.lowerLimitThresholdType || "num").typedInput("value", node.lowerLimitThreshold || "2");
 
-            // Ensure limits are numbers for comparison
-            const editorUpperLimit = parseFloat(node.upperLimit) || 50;
-            const editorLowerLimit = parseFloat(node.lowerLimit) || 30;
+        } catch (err) {
+            console.error("Error in hysteresis-block oneditprepare:", err);
+        }
 
-            $.getJSON(`/hysteresis-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
-                const changes = [];
-                if (data.name) changes.push(`name: ${data.name}`);
-                if (data.upperLimit !== undefined && !isNaN(data.upperLimit) && parseFloat(data.upperLimit) !== parseFloat(editorUpperLimit)) {
-                    changes.push(`upperLimit: ${data.upperLimit}`);
-                }
-                if (data.lowerLimit !== undefined && !isNaN(data.lowerLimit) && parseFloat(data.lowerLimit) !== parseFloat(editorLowerLimit)) {
-                    changes.push(`lowerLimit: ${data.lowerLimit}`);
-                }
-                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown");
-            });
-        },
-        oneditsave: function() {
-            // Standard config properties are automatically saved by Node-RED
-        },
-        oneditvalidate: function() {
-            const upper = $("#node-input-upperLimit").typedInput("value");
-            const lower = $("#node-input-lowerLimit").typedInput("value");
-            const upperType = $("#node-input-upperLimitType").typedInput("type");
-            const lowerType = $("#node-input-lowerLimitType").typedInput("type");
-            // Only parse if type is 'num', otherwise assume valid string path
-            const upperVal = upperType === 'num' ? parseFloat(upper) : 0;
-            const lowerVal = lowerType === 'num' ? parseFloat(lower) : 0;
-            return upperVal > lowerVal;
-        }   
-    });
+        $("#node-input-name").val(node.name || "");
+    },
+    oneditsave: function() {
+        // Standard config properties are automatically saved by Node-RED
+    },
+    oneditvalidate: function() {
+        const upper = $("#node-input-upperLimit").typedInput("value");
+        const lower = $("#node-input-lowerLimit").typedInput("value");
+        const upperType = $("#node-input-upperLimitType").typedInput("type");
+        const lowerType = $("#node-input-lowerLimitType").typedInput("type");
+        // Only parse if type is 'num', otherwise assume valid string path
+        const upperVal = upperType === 'num' ? parseFloat(upper) : 0;
+        const lowerVal = lowerType === 'num' ? parseFloat(lower) : 0;
+        return upperVal > lowerVal;
+    }   
+});
 </script>
 
 <!-- Help Section -->
 <script type="text/markdown" data-help-name="hysteresis-block">
-Evaluates numeric input against limits providing range for hysteresis.
+Hysteresis controller with separate turn-on limits and turn-off differentials.
 
 ### Inputs
-: context (string) : Configuration commands - thresholds (`"upperLimit"`, `"lowerLimit"`). Unmatched values trigger error.
-: payload (number) : Input number for evaluation or new threshold value with `msg.context`.
+: payload (number) : Input value to evaluate
+: context (string) : Configure `upperLimit`, `lowerLimit`, `upperLimitThreshold`, `lowerLimitThreshold`
 
 ### Outputs
-: above (boolean) : `true` if input is in above state, else `false`.
-: within (boolean) : `true` if input is in within state, else `false`.
-: below (boolean) : `true` if input is in below state, else `false`.
+: above (boolean) : Input > upperLimit
+: within (boolean) : lowerLimit ≤ input ≤ upperLimit  
+: below (boolean) : Input < lowerLimit
 
 ### Properties
-: name (string) : Display name in editor. Default: "" (shows "hysteresis").
-: upperLimit (number) : Upper threshold for switching to above state (≥ 0, > lowerLimit). Default: 50.
-: lowerLimit (number) : Lower threshold for switching to below state (≥ 0, < upperLimit). Default: 30.
+: upperLimit (number) : Turn on "above" state when input exceeds this value
+: upperLimitThreshold (number) : Turn off "above" state when input drops below (upperLimit - this value)
+: lowerLimit (number) : Turn on "below" state when input drops below this value  
+: lowerLimitThreshold (number) : Turn off "below" state when input rises above (lowerLimit + this value)
 
-### Details
-Evaluates payload against `upperLimit` and `lowerLimit`,
-Remains in "above" state until `msg.payload < lowerLimit`, "below" 
-until `msg.payload > upperLimit`, or "within" until crossing a threshold. 
+### Hysteresis Behavior
+- **Above**: Turns on at upperLimit, turns off at (upperLimit - upperLimitThreshold)
+- **Below**: Turns on at lowerLimit, turns off at (lowerLimit + lowerLimitThreshold)  
+- **Within**: State between turn-off points
 
-Outputs on each port with the respective value on every valid input.
+### Example: Temperature Control
+- upperLimit: 75°F (turn on cooling)
+- upperLimitThreshold: 2°F (turn off cooling at 73°F)  
+- lowerLimit: 65°F (turn on heating)
+- lowerLimitThreshold: 2°F (turn off heating at 67°F)
 
 ### Status
 - Green (dot): Configuration (e.g., `upperLimit: 50`, `lowerLimit: 30`).

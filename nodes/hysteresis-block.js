@@ -3,90 +3,82 @@ module.exports = function(RED) {
         RED.nodes.createNode(this, config);
         const node = this;
 
+        // Store typed-input properties
+        node.upperLimit = config.upperLimit;
+        node.upperLimitType = config.upperLimitType;
+        node.lowerLimit = config.lowerLimit;
+        node.lowerLimitType = config.lowerLimitType;
+        node.upperLimitThreshold = config.upperLimitThreshold;
+        node.upperLimitThresholdType = config.upperLimitThresholdType;
+        node.lowerLimitThreshold = config.lowerLimitThreshold;
+        node.lowerLimitThresholdType = config.lowerLimitThresholdType;
+        node.name = config.name;
+
         // Initialize runtime state
         node.runtime = {
             name: config.name || "",
-            upperLimit: 50,
-            lowerLimit: 30,
+            upperLimit: config.upperLimit || 50,
+            lowerLimit: config.lowerLimit || 30,
+            upperLimitThreshold: config.upperLimitThreshold || 2,
+            lowerLimitThreshold: config.lowerLimitThreshold || 2,
             state: "within"
         };
-
-        // Validate initial config
-        if (isNaN(node.runtime.upperLimit) || isNaN(node.runtime.lowerLimit) || node.runtime.upperLimit <= node.runtime.lowerLimit || node.runtime.upperLimit < 0 || node.runtime.lowerLimit < 0) {
-            node.runtime.upperLimit = 50;
-            node.runtime.lowerLimit = 30;
-            node.status({ fill: "red", shape: "ring", text: "invalid limits" });
-        }
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
 
-            // Guard against invalid message
             if (!msg) {
                 node.status({ fill: "red", shape: "ring", text: "invalid message" });
                 if (done) done();
                 return;
             }
 
-            // Evaluate properties each time a message is received
+            // Evaluate all properties
             try {
                 node.runtime.upperLimit = RED.util.evaluateNodeProperty(
-                    config.upperLimit, 
-                    config.upperLimitType, 
-                    node, 
-                    msg
+                    node.upperLimit, node.upperLimitType, node, msg
                 );
                 node.runtime.lowerLimit = RED.util.evaluateNodeProperty(
-                    config.lowerLimit, 
-                    config.lowerLimitType, 
-                    node, 
-                    msg
+                    node.lowerLimit, node.lowerLimitType, node, msg
                 );
+                node.runtime.upperLimitThreshold = RED.util.evaluateNodeProperty(
+                    node.upperLimitThreshold, node.upperLimitThresholdType, node, msg
+                );
+                node.runtime.lowerLimitThreshold = RED.util.evaluateNodeProperty(
+                    node.lowerLimitThreshold, node.lowerLimitThresholdType, node, msg
+                );
+                
+                // Validate values
+                if (isNaN(node.runtime.upperLimit) || isNaN(node.runtime.lowerLimit) || 
+                    isNaN(node.runtime.upperLimitThreshold) || isNaN(node.runtime.lowerLimitThreshold) ||
+                    node.runtime.upperLimit <= node.runtime.lowerLimit ||
+                    node.runtime.upperLimitThreshold < 0 || node.runtime.lowerLimitThreshold < 0) {
+                    node.status({ fill: "red", shape: "ring", text: "invalid evaluated values" });
+                }
             } catch(err) {
-                node.status({ fill: "red", shape: "ring", text: "error evaluating limits" });
+                node.status({ fill: "red", shape: "ring", text: "error evaluating properties" });
                 if (done) done(err);
                 return;
             }
 
-            // Handle context updates
             if (msg.hasOwnProperty("context")) {
-                if (!msg.hasOwnProperty("payload")) {
-                    node.status({ fill: "red", shape: "ring", text: `missing payload for ${msg.context}` });
-                    if (done) done();
-                    return;
-                }
-                const value = parseFloat(msg.payload);
-                if (isNaN(value)) {
-                    node.status({ fill: "red", shape: "ring", text: `invalid ${msg.context}` });
-                    if (done) done();
-                    return;
-                }
-                if (msg.context === "upperLimit") {
-                    if (value <= node.runtime.lowerLimit) {
-                        node.status({ fill: "red", shape: "ring", text: "invalid upperLimit" });
-                        if (done) done();
-                        return;
+                if (msg.context === "upperLimitThreshold") {
+                    const value = parseFloat(msg.payload);
+                    if (!isNaN(value) && value >= 0) {
+                        node.runtime.upperLimitThreshold = value;
+                        node.status({ fill: "green", shape: "dot", text: `upperLimitThreshold: ${value}` });
                     }
-                    node.runtime.upperLimit = value;
-                    node.status({ fill: "green", shape: "dot", text: `upperLimit: ${value}` });
-                } else if (msg.context === "lowerLimit") {
-                    if (value >= node.runtime.upperLimit) {
-                        node.status({ fill: "red", shape: "ring", text: "invalid lowerLimit" });
-                        if (done) done();
-                        return;
+                } else if (msg.context === "lowerLimitThreshold") {
+                    const value = parseFloat(msg.payload);
+                    if (!isNaN(value) && value >= 0) {
+                        node.runtime.lowerLimitThreshold = value;
+                        node.status({ fill: "green", shape: "dot", text: `lowerLimitThreshold: ${value}` });
                     }
-                    node.runtime.lowerLimit = value;
-                    node.status({ fill: "green", shape: "dot", text: `lowerLimit: ${value}` });
-                } else {
-                    node.status({ fill: "yellow", shape: "ring", text: "unknown context" });
-                    if (done) done("Unknown context");
-                    return;
                 }
                 if (done) done();
                 return;
             }
 
-            // Validate input payload
             if (!msg.hasOwnProperty("payload")) {
                 node.status({ fill: "red", shape: "ring", text: "missing payload" });
                 if (done) done();
@@ -99,33 +91,62 @@ module.exports = function(RED) {
                 return;
             }
 
-            // Apply hysteresis logic
-            let newState = node.runtime.state;
-            if (node.runtime.state === "above" && inputValue < node.runtime.lowerLimit) {
-                newState = "below";
-            } else if (node.runtime.state === "below" && inputValue > node.runtime.upperLimit) {
-                newState = "above";
-            } else if (node.runtime.state === "within") {
-                if (inputValue > node.runtime.upperLimit) {
-                    newState = "above";
-                } else if (inputValue < node.runtime.lowerLimit) {
-                    newState = "below";
-                }
-            } else if (inputValue >= node.runtime.lowerLimit && inputValue <= node.runtime.upperLimit) {
-                newState = "within";
-            }
+            // Calculate all boundary points - ensure numeric values
+            const upperTurnOn = node.runtime.upperLimit;
+            const upperTurnOff = node.runtime.upperLimit - node.runtime.upperLimitThreshold;
+            const lowerTurnOn = node.runtime.lowerLimit;
+            const lowerTurnOff = node.runtime.lowerLimit + node.runtime.lowerLimitThreshold;
 
-            // Generate output
+            // Add validation to ensure numbers
+            if (isNaN(upperTurnOn) || isNaN(upperTurnOff) || isNaN(lowerTurnOn) || isNaN(lowerTurnOff)) {
+                node.status({ fill: "red", shape: "ring", text: "invalid boundary calculation" });
+                if (done) done();
+                return;
+            }
+            // Apply comprehensive hysteresis logic
+            let newState = node.runtime.state;
+
+            switch (node.runtime.state) {
+                case "above":
+                    if (inputValue <= upperTurnOff) {
+                        newState = "within";
+                        if (inputValue <= lowerTurnOn) {
+                            newState = "below"; 
+                        }
+                    }
+                    break;
+            
+                case "below":
+                    if (inputValue >= lowerTurnOff) {
+                        newState = "within";
+                        if (inputValue >= upperTurnOn) {
+                            newState = "above";
+                        }
+                    }
+                    break;
+            
+                case "within":
+                    if (inputValue >= upperTurnOn) {
+                        newState = "above";
+                    } else if (inputValue <= lowerTurnOn) {
+                        newState = "below";
+                    }
+                    break;
+                }
+            
+
             const output = [
                 { payload: newState === "above" },
                 { payload: newState === "within" },
                 { payload: newState === "below" }
             ];
+
             node.status({
                 fill: "blue",
                 shape: "dot",
-                text: `in: ${inputValue.toFixed(2)}, out: ${newState}`
+                text: `in: ${inputValue.toFixed(2)}, state: ${newState}`
             });
+
             node.runtime.state = newState;
             send(output);
 
@@ -133,31 +154,10 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            node.runtime.upperLimit = parseFloat(config.upperLimit) || 50;
-            node.runtime.lowerLimit = parseFloat(config.lowerLimit) || 30;
-            if (isNaN(node.runtime.upperLimit) || isNaN(node.runtime.lowerLimit) || node.runtime.upperLimit <= node.runtime.lowerLimit) {
-                node.runtime.upperLimit = 50;
-                node.runtime.lowerLimit = 30;
-            }
-            node.runtime.state = "within";
             node.status({});
             done();
         });
     }
 
     RED.nodes.registerType("hysteresis-block", HysteresisBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/hysteresis-block-runtime/:id", RED.auth.needsPermission("hysteresis-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "hysteresis-block") {
-            res.json({
-                name: node.runtime.name,
-                upperLimit: node.runtime.upperLimit,
-                lowerLimit: node.runtime.lowerLimit
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };
