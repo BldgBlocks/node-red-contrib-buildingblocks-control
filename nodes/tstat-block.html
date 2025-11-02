@@ -520,10 +520,38 @@ Thermostat controller for heating/cooling with single, split, or specified setpo
 : payload (number | boolean | string) : Number for temperature or config values, boolean for `isHeating`, string for `algorithm` (`"single"`, `"split"`, `"specified"`).
 
 ### Outputs
-: isHeating (boolean) : `true` for heating mode, `false` for cooling mode. `msg.context = "isHeating"` is attached.
-: above (boolean) : `true` if input exceeds cooling on threshold (single: `setpoint + diff/2`, split: `coolingSetpoint + diff/2`, specified: `coolingOn`).
-: below (boolean) : `true` if input is below heating on threshold (single: `setpoint - diff/2`, split: `heatingSetpoint - diff/2`, specified: `heatingOn`).
+All output messages include a `msg.status` object containing runtime information:
+: isHeating (boolean) : `true` for heating mode, `false` for cooling mode. Includes `msg.context = "isHeating"`.
+: above (boolean) : `true` if input exceeds cooling on threshold.
+: below (boolean) : `true` if input is below heating on threshold.
+: status (object) : Contains detailed runtime information including:
+  - `algorithm`: Current algorithm in use
+  - `input`: Current temperature input value
+  - `isHeating`: Current heating mode
+  - `above/below`: Current output states
+  - Algorithm-specific setpoints and values
+  - `modeChanged`: If mode recently changed
+  - `cyclesSinceModeChange`: Count since last mode change
+  - `effectiveAnticipator`: Current anticipator value after mode change adjustments
 
+### Status Monitoring
+Instead of a dedicated status output, all outputs include comprehensive status information:
+```json
+{
+  "status": {
+    "algorithm": "single",
+    "input": 68.5,
+    "isHeating": true,
+    "above": false,
+    "below": true,
+    "setpoint": 70,
+    "diff": 2,
+    "anticipator": 0.5,
+    "modeChanged": false,
+    "cyclesSinceModeChange": 3,
+    "effectiveAnticipator": 0.5
+  }
+}
 ### Algorithms
 - **Single Setpoint**:
   - Uses `setpoint`, `diff`, and `anticipator`.
@@ -570,8 +598,6 @@ The `ignoreAnticipatorCycles` setting allows ignoring the anticipator for a spec
 
 All numeric inputs (`setpoint`, `heatingSetpoint`, `coolingSetpoint`, `coolingOn`, `coolingOff`, `heatingOff`, `heatingOn`, `diff`, `anticipator`, 
 `ignoreAnticipatorCycles`) support `num`, `msg`, `flow`, or `global` types via `typedInput`.
-
-Query runtime state with `msg.context = "status"`.
 
 ### Status
 - Green (dot): Configuration updates (e.g., `setpoint: 70.0`, `anticipator: 0.5`, `isHeating: true`).

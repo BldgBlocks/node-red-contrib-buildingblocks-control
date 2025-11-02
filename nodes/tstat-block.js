@@ -422,12 +422,54 @@ module.exports = function(RED) {
                     below = false;
                 }
             }
+            
+            // Add status information to every output message
+            const statusInfo = {
+                algorithm: node.algorithm,
+                input: input,
+                isHeating: isHeating,
+                above: above,
+                below: below,
+                modeChanged: modeChanged,
+                cyclesSinceModeChange: cyclesSinceModeChange,
+                effectiveAnticipator: effectiveAnticipator
+            };
 
+            // Add algorithm-specific status
+            if (node.algorithm === "single") {
+                statusInfo.setpoint = setpoint;
+                statusInfo.diff = diff;
+                statusInfo.anticipator = anticipator;
+            } else if (node.algorithm === "split") {
+                statusInfo.heatingSetpoint = heatingSetpoint;
+                statusInfo.coolingSetpoint = coolingSetpoint;
+                statusInfo.diff = diff;
+                statusInfo.anticipator = anticipator;
+            } else {
+                statusInfo.coolingOn = coolingOn;
+                statusInfo.coolingOff = coolingOff;
+                statusInfo.heatingOff = heatingOff;
+                statusInfo.heatingOn = heatingOn;
+                statusInfo.anticipator = anticipator;
+            }
+
+            // Create outputs with status information
             const outputs = [
-                { payload: isHeating, context: "isHeating" },
-                { payload: above },
-                { payload: below }
+                { 
+                    payload: isHeating, 
+                    context: "isHeating",
+                    status: statusInfo
+                },
+                { 
+                    payload: above,
+                    status: statusInfo
+                },
+                { 
+                    payload: below,
+                    status: statusInfo
+                }
             ];
+
             send(outputs);
 
             if (above === lastAbove && below === lastBelow) {
