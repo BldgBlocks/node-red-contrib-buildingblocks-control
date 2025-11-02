@@ -520,7 +520,7 @@ Thermostat controller for heating/cooling with single, split, or specified setpo
 : payload (number | boolean | string) : Number for temperature or config values, boolean for `isHeating`, string for `algorithm` (`"single"`, `"split"`, `"specified"`).
 
 ### Outputs
-All output messages include a `msg.status` object containing runtime information:
+All output messages include a `msg.status` object containing runtime information
 : isHeating (boolean) : `true` for heating mode, `false` for cooling mode. Includes `msg.context = "isHeating"`.
 : above (boolean) : `true` if input exceeds cooling on threshold.
 : below (boolean) : `true` if input is below heating on threshold.
@@ -535,7 +535,7 @@ All output messages include a `msg.status` object containing runtime information
   - `effectiveAnticipator`: Current anticipator value after mode change adjustments
 
 ### Status Monitoring
-Instead of a dedicated status output, all outputs include comprehensive status information:
+Instead of a dedicated status output, all outputs include comprehensive status information
 ```json
 {
   "status": {
