@@ -4,14 +4,6 @@
         <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
-    <div class="form-row">
-        <label><i class="fa fa-toggle-on"></i> Toggle</label>
-        <button id="node-toggle-button" class="red-ui-button">Toggle</button>
-    </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
-    </div>
 </script>
 
 <!-- JavaScript Section -->
@@ -34,35 +26,6 @@
         oneditprepare: function() {
             const node = this;
             $("#node-input-name").val(node.name || "");
-
-            $.getJSON(`/boolean-switch-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
-                const changes = [];
-                if (data.name) changes.push(`name: ${data.name}`);
-                if (data.state !== undefined && data.state !== false) {
-                    changes.push(`state: ${data.state}`);
-                }
-                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown");
-            });
-
-            $("#node-toggle-button").click(function() {
-                $.ajax({
-                    url: `/boolean-switch-block/${this.id}/toggle`,
-                    type: "POST",
-                    success: function() {
-                        $.getJSON(`/boolean-switch-block-runtime/${node.id}?t=${Date.now()}`, function(data) {
-                            const changes = [];
-                            if (data.name) changes.push(`name: ${data.name}`);
-                            if (data.state !== undefined && data.state !== false) {
-                                changes.push(`state: ${data.state}`);
-                            }
-                            $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-                        });
-                    },
-                    error: function() {}
-                });
-            });
         },
         oneditsave: function() {
             // Standard config properties are automatically saved
@@ -78,26 +41,26 @@
 Routes input flows to one of three outputs based on a boolean switch state.
 
 ### Inputs
-: context (string) : Configuration commands (`"switch"`, `"inTrue"`, `"inFalse"`).
-: payload (any) : Flow data for `"inTrue"` or `"inFalse"`; ignored for `"switch"`.
+: context (string) : Configuration commands (`toggle`, `switch`, `inTrue`, `inFalse`).
+: payload (any) : Flow data for `"inTrue"` or `"inFalse"`.
 
 ### Outputs
-: outTrue (msg) : Receives `msg` with `context: "inTrue"` when switch is `true`.
-: outFalse (msg) : Receives `msg` with `context: "inFalse"` when switch is `false`.
-: outControl (msg) : `{ payload: boolean }` with switch state on toggle.
+: outTrue (msg) : Receives `msg` with `context "inTrue"` when switch is `true`.
+: outFalse (msg) : Receives `msg` with `context "inFalse"` when switch is `false`.
+: outControl (msg) : `msg.payload` set to switch state on toggle.
 
 ### Details
 Routes input messages to one of three outputs based on a boolean switch state (`true` or `false`).
 
-Messages with `msg.context = "inTrue"` are sent to `outTrue` when `state = true`, and messages with `msg.context = "inFalse"` are sent to `outFalse` when `state = false`. Toggling the switch (`msg.context = "toggle"` or `"switch"`, or editor toggle button) sends `{ payload: state }` to `outControl`. The switch state is stored persistently in node context, surviving redeployments. Configurable via editor (`name`, toggle state). 
+Messages with `msg.context = "inTrue"` are sent to `outTrue` when `state = true`, and messages with `msg.context = "inFalse"` are sent to `outFalse` when `state = false`.
 
-Runtime values (`name`, `state`) are shown in "Changed Runtime Values" if non-default (`name ≠ ""`, `state ≠ false`).
+State can be controlled directly with the `"switch"` property given a `msg.payload` boolean value.
 
 ### Status
-- Green (dot): Initial state (e.g., `state: true, out: true`).
-- Blue (dot): Output sent (e.g., `state: true, out: true`).
-- Red (ring): Errors (e.g., `missing or invalid context`).
-- Yellow (ring): Unknown context (e.g., `unknown context`).
+- Green (dot): Configuration
+- Blue (dot): Output sent
+- Red (ring): Errors
+- Yellow (ring): Unknown context
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

@@ -2,27 +2,8 @@ module.exports = function(RED) {
     function HysteresisBlockNode(config) {
         RED.nodes.createNode(this, config);
         const node = this;
-
-        // Store typed-input properties
-        node.upperLimit = config.upperLimit;
-        node.upperLimitType = config.upperLimitType;
-        node.lowerLimit = config.lowerLimit;
-        node.lowerLimitType = config.lowerLimitType;
-        node.upperLimitThreshold = config.upperLimitThreshold;
-        node.upperLimitThresholdType = config.upperLimitThresholdType;
-        node.lowerLimitThreshold = config.lowerLimitThreshold;
-        node.lowerLimitThresholdType = config.lowerLimitThresholdType;
         node.name = config.name;
-
-        // Initialize runtime state
-        node.runtime = {
-            name: config.name || "",
-            upperLimit: config.upperLimit || 50,
-            lowerLimit: config.lowerLimit || 30,
-            upperLimitThreshold: config.upperLimitThreshold || 2,
-            lowerLimitThreshold: config.lowerLimitThreshold || 2,
-            state: "within"
-        };
+        node.state = "within";
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
@@ -35,25 +16,27 @@ module.exports = function(RED) {
 
             // Evaluate all properties
             try {
-                node.runtime.upperLimit = RED.util.evaluateNodeProperty(
-                    node.upperLimit, node.upperLimitType, node, msg
+                node.upperLimit = RED.util.evaluateNodeProperty(
+                    config.upperLimit, config.upperLimitType, node, msg
                 );
-                node.runtime.lowerLimit = RED.util.evaluateNodeProperty(
-                    node.lowerLimit, node.lowerLimitType, node, msg
+                node.lowerLimit = RED.util.evaluateNodeProperty(
+                    config.lowerLimit, config.lowerLimitType, node, msg
                 );
-                node.runtime.upperLimitThreshold = RED.util.evaluateNodeProperty(
-                    node.upperLimitThreshold, node.upperLimitThresholdType, node, msg
+                node.upperLimitThreshold = RED.util.evaluateNodeProperty(
+                    config.upperLimitThreshold, config.upperLimitThresholdType, node, msg
                 );
-                node.runtime.lowerLimitThreshold = RED.util.evaluateNodeProperty(
-                    node.lowerLimitThreshold, node.lowerLimitThresholdType, node, msg
+                node.lowerLimitThreshold = RED.util.evaluateNodeProperty(
+                    config.lowerLimitThreshold, config.lowerLimitThresholdType, node, msg
                 );
                 
                 // Validate values
-                if (isNaN(node.runtime.upperLimit) || isNaN(node.runtime.lowerLimit) || 
-                    isNaN(node.runtime.upperLimitThreshold) || isNaN(node.runtime.lowerLimitThreshold) ||
-                    node.runtime.upperLimit <= node.runtime.lowerLimit ||
-                    node.runtime.upperLimitThreshold < 0 || node.runtime.lowerLimitThreshold < 0) {
+                if (isNaN(node.upperLimit) || isNaN(node.lowerLimit) || 
+                    isNaN(node.upperLimitThreshold) || isNaN(node.lowerLimitThreshold) ||
+                    node.upperLimit <= node.lowerLimit ||
+                    node.upperLimitThreshold < 0 || node.lowerLimitThreshold < 0) {
                     node.status({ fill: "red", shape: "ring", text: "invalid evaluated values" });
+                    if (done) done();
+                    return;
                 }
             } catch(err) {
                 node.status({ fill: "red", shape: "ring", text: "error evaluating properties" });
@@ -65,13 +48,13 @@ module.exports = function(RED) {
                 if (msg.context === "upperLimitThreshold") {
                     const value = parseFloat(msg.payload);
                     if (!isNaN(value) && value >= 0) {
-                        node.runtime.upperLimitThreshold = value;
+                        node.upperLimitThreshold = value;
                         node.status({ fill: "green", shape: "dot", text: `upperLimitThreshold: ${value}` });
                     }
                 } else if (msg.context === "lowerLimitThreshold") {
                     const value = parseFloat(msg.payload);
                     if (!isNaN(value) && value >= 0) {
-                        node.runtime.lowerLimitThreshold = value;
+                        node.lowerLimitThreshold = value;
                         node.status({ fill: "green", shape: "dot", text: `lowerLimitThreshold: ${value}` });
                     }
                 }
@@ -92,10 +75,10 @@ module.exports = function(RED) {
             }
 
             // Calculate all boundary points - ensure numeric values
-            const upperTurnOn = node.runtime.upperLimit;
-            const upperTurnOff = node.runtime.upperLimit - node.runtime.upperLimitThreshold;
-            const lowerTurnOn = node.runtime.lowerLimit;
-            const lowerTurnOff = node.runtime.lowerLimit + node.runtime.lowerLimitThreshold;
+            const upperTurnOn = node.upperLimit;
+            const upperTurnOff = node.upperLimit - node.upperLimitThreshold;
+            const lowerTurnOn = node.lowerLimit;
+            const lowerTurnOff = node.lowerLimit + node.lowerLimitThreshold;
 
             // Add validation to ensure numbers
             if (isNaN(upperTurnOn) || isNaN(upperTurnOff) || isNaN(lowerTurnOn) || isNaN(lowerTurnOff)) {
@@ -104,9 +87,9 @@ module.exports = function(RED) {
                 return;
             }
             // Apply comprehensive hysteresis logic
-            let newState = node.runtime.state;
+            let newState = node.state;
 
-            switch (node.runtime.state) {
+            switch (node.state) {
                 case "above":
                     if (inputValue <= upperTurnOff) {
                         newState = "within";
@@ -115,7 +98,6 @@ module.exports = function(RED) {
                         }
                     }
                     break;
-            
                 case "below":
                     if (inputValue >= lowerTurnOff) {
                         newState = "within";
@@ -124,7 +106,6 @@ module.exports = function(RED) {
                         }
                     }
                     break;
-            
                 case "within":
                     if (inputValue >= upperTurnOn) {
                         newState = "above";
@@ -133,7 +114,6 @@ module.exports = function(RED) {
                     }
                     break;
                 }
-            
 
             const output = [
                 { payload: newState === "above" },
@@ -147,7 +127,7 @@ module.exports = function(RED) {
                 text: `in: ${inputValue.toFixed(2)}, state: ${newState}`
             });
 
-            node.runtime.state = newState;
+            node.state = newState;
             send(output);
 
             if (done) done();

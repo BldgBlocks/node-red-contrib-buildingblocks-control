@@ -11,83 +11,43 @@
         <label for="node-input-removeLabel" title="Remove msg.context instead of setting it"><i class="fa fa-trash"></i> Remove Context</label>
         <input type="checkbox" id="node-input-removeLabel" style="width: auto; vertical-align: middle;">
     </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
-    </div>
 </script>
 
 <script type="text/javascript">
-    RED.nodes.registerType("contextual-label-block", {
-        category: "control",
-        color: "#301934",
-        defaults: {
-            name: { value: "" },
-            contextPropertyName: { 
-                value: "label", 
-                required: true, 
-                validate: function(v) { return v && typeof v === "string" && v.trim().length > 0; } 
-            },
-            removeLabel: { value: false }
+RED.nodes.registerType("contextual-label-block", {
+    category: "control",
+    color: "#301934",
+    defaults: {
+        name: { value: "" },
+        contextPropertyName: { 
+            value: "in1", 
+            required: true, 
+            validate: function(v) { return v && typeof v === "string" && v.trim().length > 0; } 
         },
-        inputs: 1,
-        outputs: 1,
-        inputLabels: ["input"],
-        outputLabels: ["output"],
-        icon: "font-awesome/fa-tag",
-        paletteLabel: "contextual label",
-        label: function() {
-            if (this.name) return this.name;
-            return this.removeLabel ? "remove context" : `contextual ${this.contextPropertyName || "context"}`;
-        },
-        oneditprepare: function() {
-            const node = this;
-            const id = this.id;
-
-            // Initialize inputs
-            $("#node-input-name").val(node.name || "");
-            $("#node-input-contextPropertyName").val(node.contextPropertyName || "label");
-            $("#node-input-removeLabel").prop("checked", node.removeLabel || false);
-
-            // Validate contextPropertyName input
-            $("#node-input-contextPropertyName").on("input", function() {
-                const val = $(this).val();
-                if (!val || typeof val !== "string" || val.trim().length === 0) {
-                    $(this).addClass("input-error");
-                } else {
-                    $(this).removeClass("input-error");
-                }
-            });
-
-            // Fetch runtime changes
-            $.getJSON(`/contextual-label-block-runtime/${id}`, function(data) {
-                const runtime = data || {};
-                const changes = [];
-                if (runtime.name) changes.push(`name: ${runtime.name}`);
-                if (runtime.contextPropertyName !== undefined && runtime.contextPropertyName !== node.contextPropertyName) {
-                    changes.push(`contextPropertyName: ${runtime.contextPropertyName}`);
-                }
-                if (runtime.removeLabel !== undefined && runtime.removeLabel !== node.removeLabel) {
-                    changes.push(`removeLabel: ${runtime.removeLabel}`);
-                }
-                const displayText = changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None";
-                $("#node-runtime-changes").text(displayText);
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: None");
-            });
-        },
-        oneditsave: function() {
-            // Standard config properties are automatically saved
-        },
-        oneditvalidate: function() {
-            const contextPropertyName = $("#node-input-contextPropertyName").val();
-            if (!contextPropertyName || typeof contextPropertyName !== "string" || contextPropertyName.trim().length === 0) {
-                $("#node-input-contextPropertyName").addClass("input-error");
-                return false;
-            }
-            return true;
-        }
-    });
+        removeLabel: { value: false }
+    },
+    inputs: 1,
+    outputs: 1,
+    inputLabels: ["input"],
+    outputLabels: ["output"],
+    icon: "font-awesome/fa-tag",
+    paletteLabel: "contextual label",
+    label: function() {
+        if (this.name) return this.name;
+        return this.removeLabel ? "remove context" : `🛈 ${this.contextPropertyName || "context"}`;
+    },
+    oneditprepare: function() {
+        $("#node-input-name").val(this.name || "");
+        $("#node-input-contextPropertyName").val(this.contextPropertyName || "in1");
+        $("#node-input-removeLabel").prop("checked", this.removeLabel || false);
+    },
+    oneditsave: function() {
+        // Standard config properties are automatically saved
+    },
+    oneditvalidate: function() {
+        return true;
+    }
+});
 </script>
 
 <script type="text/markdown" data-help-name="contextual-label-block">
@@ -98,20 +58,16 @@ Sets or removes the msg.context property in a message.
 
 ### Outputs
 : context (string) : Configured context property (e.g., `priority`, `clear`, `in1`) if set, or absent if removed.
-: payload (any) : Original input `msg.payload`, unchanged.
+: payload (any) : Original message object with context added or deleted.
 
 ### Details
-Either sets `msg.context` to a configured property (e.g., `priority`, `clear`, `in1`) or removes `msg.context` based on the `Remove Context` toggle. 
-
-When `Remove Context` is disabled (default), the node sets `msg.context` to the configured `contextPropertyName` without modifying other message properties. 
-When enabled, it deletes `msg.context` from the input message. Configuration is set via the editor (`name`, `contextPropertyName`, `removeLabel`) 
-with no runtime configuration support. 
+Either sets `msg.context` to a configured property (e.g., `priority`, `clear`, `in1`) or removes `msg.context` based on the `Remove Context` toggle.
 
 ### Status
-- Green (dot): Configuration updates (e.g., `mode: set, contextPropertyName: priority`, `mode: remove`).
-- Blue (dot): Outputs when input changes (e.g., `in: 5, out: priority`, `in: 5, out: removed context`).
-- Blue (ring): Outputs when input unchanged (e.g., `in: 5, out: priority` if same as previous).
-- Red (ring): Errors (e.g., `missing message`, `invalid context property, using context`).
+- Green (dot): Configuration updates
+- Blue (dot): Outputs when input changes
+- Blue (ring): Outputs when input unchanged
+- Red (ring): Errors
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)
