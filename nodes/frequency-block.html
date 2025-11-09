@@ -4,10 +4,6 @@
         <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
-    </div>
 </script>
 
 <!-- JavaScript Section: Registers the node and handles editor logic -->
@@ -26,24 +22,6 @@
         paletteLabel: "frequency",
         label: function() {
             return this.name || "frequency";
-        },
-        oneditprepare: function() {
-            const node = this;
-            $("#node-input-name").val(node.name || "");
-
-            $.getJSON(`/frequency-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
-                const changes = [];
-                if (data.name) changes.push(`name: ${data.name}`);
-                if (data.ppm !== 0) changes.push(`ppm: ${data.ppm.toFixed(2)}`);
-                if (data.pph !== 0) changes.push(`pph: ${data.pph.toFixed(2)}`);
-                if (data.ppd !== 0) changes.push(`ppd: ${data.ppd.toFixed(2)}`);
-                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown");
-            });
-        },
-        oneditsave: function() {
-            // Standard config properties are automatically saved by Node-RED
         }
     });
 </script>
@@ -65,11 +43,11 @@ Measures pulse frequency from rising edges in `msg.payload` (boolean, `true` for
 (first edge sets baseline). Resets state via `msg.context = "reset"` with `msg.payload = true`.
 
 ### Status
-- Green (dot): Configuration (e.g., `reset`).
-- Blue (dot): Output (e.g., `ppm: 1.00, pph: 60.00, ppd: 1440.00`).
-- Blue (ring): Non-output input (e.g., `input: false, ppm: 1.00, pph: 60.00, ppd: 1440.00`).
-- Red (ring): Errors (e.g., `missing payload`, `invalid payload`, `invalid reset`).
-- Yellow (ring): Warnings (e.g., `unknown context`).
+- Green (dot): Configuration
+- Blue (dot): Output, no alarm
+- Red (dot): Output with alarm
+- Red (ring): Errors
+- Yellow (ring): Unknown context
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

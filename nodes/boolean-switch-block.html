@@ -57,10 +57,11 @@ Messages with `msg.context = "inTrue"` are sent to `outTrue` when `state = true`
 State can be controlled directly with the `"switch"` property given a `msg.payload` boolean value.
 
 ### Status
-- Green (dot): Configuration
-- Blue (dot): Output sent
-- Red (ring): Errors
-- Yellow (ring): Unknown context
+- Green (dot): Configuration update
+- Blue (dot): State changed
+- Blue (ring): State unchanged
+- Red (ring): Error
+- Yellow (ring): Warning
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

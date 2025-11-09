@@ -5,25 +5,18 @@ module.exports = function(RED) {
 
         // Initialize runtime state
         node.runtime = {
-            name: config.name || "",
-            mode: config.mode || "true",
+            name: config.name,
+            mode: config.mode,
             count: 0,
             lastCount: null
         };
 
-        // Validate configuration
-        const validModes = ["true", "false", "flows"];
-        if (!validModes.includes(node.runtime.mode)) {
-            node.runtime.mode = "true";
-            node.status({ fill: "red", shape: "ring", text: "invalid mode, using true" });
-            node.warn(`Invalid mode: ${config.mode}, using true`);
-        } else {
-            node.status({
-                fill: "green",
-                shape: "dot",
-                text: `mode: ${node.runtime.mode}, name: ${node.runtime.name || node.runtime.mode + " accumulate"}`
-            });
-        }
+        // Set initial status
+        node.status({
+            fill: "green",
+            shape: "dot",
+            text: `mode: ${node.runtime.mode}, name: ${node.runtime.name || node.runtime.mode + " accumulate"}`
+        });
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
@@ -36,29 +29,15 @@ module.exports = function(RED) {
                 return;
             }
 
-            // Handle reset configuration
-            if (msg.hasOwnProperty("context")) {
-                if (!msg.hasOwnProperty("payload")) {
-                    node.status({ fill: "red", shape: "ring", text: "missing payload" });
-                    node.warn("Missing payload");
+            // Handle reset command with intentional payload requirement
+            if (msg.context === "reset") {
+                if (msg.payload === true) {
+                    count = 0;
+                    updateStatus();
                     if (done) done();
                     return;
                 }
-                if (msg.context === "reset") {
-                    if (typeof msg.payload !== "boolean") {
-                        node.status({ fill: "red", shape: "ring", text: "invalid reset" });
-                        node.warn("Invalid reset payload");
-                        if (done) done();
-                        return;
-                    }
-                    if (msg.payload === true) {
-                        node.runtime.count = 0;
-                        node.runtime.lastCount = null;
-                        node.status({ fill: "green", shape: "dot", text: "state reset" });
-                        if (done) done();
-                        return;
-                    }
-                }
+                // payload !== true: treat as normal message, don't reset
             }
 
             // Process input based on mode
@@ -80,6 +59,7 @@ module.exports = function(RED) {
                     return;
                 }
 
+                // Prevent extended time running isues
                 if (node.runtime.count > 9999) {
                     node.runtime.count = 0;
                 }
@@ -116,26 +96,9 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            // Reset state on redeployment
-            node.runtime.count = 0;
-            node.runtime.lastCount = null;
-            node.status({});
             done();
         });
     }
 
     RED.nodes.registerType("accumulate-block", AccumulateBlockNode);
-
-    // HTTP endpoint for editor reflection
-    RED.httpAdmin.get("/accumulate-block-runtime/:id", RED.auth.needsPermission("accumulate-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "accumulate-block") {
-            res.json({
-                name: node.runtime.name,
-                mode: node.runtime.mode
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

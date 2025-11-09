@@ -18,7 +18,7 @@
             slots: {
                 value: 2,
                 required: true,
-                validate: function(v) { return !isNaN(parseInt(v)) && parseInt(v) >= 1; }
+                validate: function(v) { return !isNaN(parseInt(v)) && parseInt(v) > 1; }
             }
         },
         inputs: 1,
@@ -30,45 +30,8 @@
         label: function() {
             return this.name ? `${this.name} (${this.slots})` : `divide (${this.slots})`;
         },
-        oneditprepare: function() {
-            // Initialize inputs
-            $("#node-input-name").val(this.name || "divide");
-            $("#node-input-slots").val(this.slots || 2);
-
-            // Validate name input
-            $("#node-input-name").on("input", function() {
-                const val = $(this).val();
-                if (!val || val.trim().length === 0) {
-                    $(this).addClass("input-error");
-                } else {
-                    $(this).removeClass("input-error");
-                }
-            });
-
-            // Validate slots input
-            $("#node-input-slots").on("input", function() {
-                const val = parseInt($(this).val(), 10);
-                if (isNaN(val) || val < 1) {
-                    $(this).addClass("input-error");
-                } else {
-                    $(this).removeClass("input-error");
-                }
-            });
-        },
-        oneditsave: function() {
-            // Standard config properties are automatically saved
-        },
         oneditvalidate: function() {
-            const name = $("#node-input-name").val();
-            const slots = parseInt($("#node-input-slots").val(), 10);
-            if (!name || name.trim().length === 0) {
-                $("#node-input-name").addClass("input-error");
-                return false;
-            }
-            if (isNaN(slots) || slots < 1) {
-                $("#node-input-slots").addClass("input-error");
-                return false;
-            }
+            // typed-input's only validate at runtime. (unless simple RED.validators used in defaults)
             return true;
         }
     });
@@ -87,18 +50,18 @@ Divides numeric inputs from multiple slots in sequence.
 ### Details
 Divides numeric `msg.payload` values from slots identified by `msg.context` (e.g., `"in1"`, `"in2"`) in sequence. 
 
-Slots (default: 2) are set via editor or `msg.context = "slots"` with positive integer. Inputs default to 1, updated via `msg.context = "inX"`. 
+Slots are set via editor or `msg.context = "slots"` with positive integer.
 
 Inputs for `in2` onward must be non-zero to avoid division by zero. Resets inputs to 1 via `msg.context = "reset"` with `msg.payload = true`. 
 
 Outputs a number only when the result changes. 
 
 ### Status
-- Green (dot): Configuration or reset (e.g., `name: divide, slots: 2`, `state reset`, `slots: 3`).
-- Blue (dot): Outputs when result changes (e.g., `in: in1=10.00, out: 5.00`).
-- Blue (ring): Outputs when result unchanged (e.g., `in: in1=10.00, out: 5.00`).
-- Red (ring): Errors (e.g., `invalid message`, `missing context`, `invalid input`, `divide by zero`).
-- Yellow (ring): Warnings (e.g., `unknown context`).
+- Green (dot): Configuration
+- Blue (dot): Output, no alarm
+- Red (dot): Output with alarm
+- Red (ring): Errors
+- Yellow (ring): Unknown context
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

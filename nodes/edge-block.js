@@ -5,26 +5,21 @@ module.exports = function(RED) {
 
         // Initialize runtime state
         node.runtime = {
-            name: config.name || "",
-            algorithm: config.algorithm || "true-to-false",
+            name: config.name,
+            algorithm: config.algorithm,
             lastValue: null
         };
 
-        // Validate initial config
-        const validAlgorithms = ["true-to-false", "false-to-true"];
-        if (!validAlgorithms.includes(node.runtime.algorithm)) {
-            node.runtime.algorithm = "true-to-false";
-            node.status({ fill: "red", shape: "ring", text: "invalid algorithm, using true-to-false" });
-        } else {
-            node.status({
-                fill: "green",
-                shape: "dot",
-                text: `name: ${node.runtime.name || "edge"}, algorithm: ${node.runtime.algorithm}`
-            });
-        }
+        node.status({
+            fill: "green",
+            shape: "dot",
+            text: `name: ${node.runtime.name || "edge"}, algorithm: ${node.runtime.algorithm}`
+        });
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
+
+            const validAlgorithms = ["true-to-false", "false-to-true"];
 
             // Guard against invalid message
             if (!msg) {
@@ -89,7 +84,7 @@ module.exports = function(RED) {
 
             // Check for transition
             let isTransition = false;
-            if (lastValue !== null) {
+            if (lastValue !== null && lastValue !== undefined) {
                 if (node.runtime.algorithm === "true-to-false" && lastValue === true && currentValue === false) {
                     isTransition = true;
                 } else if (node.runtime.algorithm === "false-to-true" && lastValue === false && currentValue === true) {
@@ -117,25 +112,9 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            node.runtime.algorithm = config.algorithm || "true-to-false";
-            node.runtime.lastValue = null;
-            node.status({});
             done();
         });
     }
 
     RED.nodes.registerType("edge-block", EdgeBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/edge-block-runtime/:id", RED.auth.needsPermission("edge-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "edge-block") {
-            res.json({
-                name: node.runtime.name,
-                algorithm: node.runtime.algorithm
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

@@ -4,10 +4,6 @@
         <label for="node-input-name" title="Display name shown on the canvas"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name" placeholder="Name">
     </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
-    </div>
 </script>
 
 <!-- JavaScript Section: Registers the node and handles editor logic -->
@@ -27,23 +23,8 @@
         label: function() {
             return this.name || "count";
         },
-        oneditprepare: function() {
-            const node = this;
-            $("#node-input-name").val(node.name || "");
-
-            $.getJSON(`/count-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
-                const changes = [];
-                if (data.name) changes.push(`name: ${data.name}`);
-                if (data.count !== undefined && data.count !== 0) {
-                    changes.push(`count: ${data.count}`);
-                }
-                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown");
-            });
-        },
-        oneditsave: function() {
-            // Standard config properties are automatically saved by Node-RED
+        oneditvalidate: function () {
+            return true;
         }
     });
 </script>
@@ -60,18 +41,18 @@ Counts boolean rising edges in the input.
 : payload (number) : Current count of rising edges.
 
 ### Properties
-: name (string) : Display name in editor. Default: "" (shows "count").
+: name (string) : Display name in editor.
 
 ### Details
 Counts rising edges (false-to-true transitions) in `msg.payload` (boolean), incrementing the count on each transition. 
 Resets count to 0 via `msg.context = "reset"` with `msg.payload = true`. 
 
 ### Status
-- Green (dot): Reset (e.g., `state reset`).
-- Blue (dot): Output on count change (e.g., `out: 5`).
-- Blue (ring): Unchanged input (e.g., `out: 5`).
-- Red (ring): Errors (e.g., `invalid input`, `invalid reset`).
-- Yellow (ring): Unknown context (e.g., `unknown context`).
+- Green (dot): Configuration
+- Blue (dot): Output, no alarm
+- Red (dot): Output with alarm
+- Red (ring): Errors
+- Yellow (ring): Unknown context
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

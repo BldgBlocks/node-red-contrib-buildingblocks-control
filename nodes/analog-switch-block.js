@@ -5,18 +5,11 @@ module.exports = function(RED) {
 
         // Initialize runtime state
         node.runtime = {
-            name: config.name || "",
-            slots: parseInt(config.slots, 10) || 2,
+            name: config.name,
+            slots: parseInt(config.slots, 10),
             inputs: Array(parseInt(config.slots, 10) || 2).fill(0),
             switch: 1
         };
-
-        // Validate initial config
-        if (isNaN(node.runtime.slots) || node.runtime.slots < 1) {
-            node.runtime.slots = 2;
-            node.runtime.inputs = Array(2).fill(0);
-            node.status({ fill: "red", shape: "ring", text: "invalid slots" });
-        }
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
@@ -128,31 +121,9 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            node.runtime.slots = parseInt(config.slots, 10) || 2;
-            if (isNaN(node.runtime.slots) || node.runtime.slots < 1) {
-                node.runtime.slots = 2;
-            }
-            node.runtime.inputs = Array(node.runtime.slots).fill(0);
-            node.runtime.switch = 1;
-            node.status({});
             done();
         });
     }
-
+    
     RED.nodes.registerType("analog-switch-block", AnalogSwitchBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/analog-switch-block-runtime/:id", RED.auth.needsPermission("analog-switch-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "analog-switch-block") {
-            res.json({
-                name: node.runtime.name,
-                slots: node.runtime.slots,
-                switch: node.runtime.switch,
-                inputs: node.runtime.inputs
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

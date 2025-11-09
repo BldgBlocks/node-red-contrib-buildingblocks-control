@@ -36,10 +36,6 @@
         <label for="node-input-noStatusOnRunMessage" title="Message for no status on run alarm (string)"><i class="fa fa-comment"></i> No Status Message</label>
         <input type="text" id="node-input-noStatusOnRunMessage" placeholder="No status received during run">
     </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
-    </div>
 </script>
 
 <!-- JavaScript Section: Registers the node and handles editor logic -->
@@ -67,53 +63,11 @@
         label: function() {
             return this.name || "call status";
         },
-        oneditprepare: function() {
-            const node = this;
-            $("#node-input-name").val(node.name || "");
-            $("#node-input-statusTimeout").val(node.statusTimeout || 30);
-            $("#node-input-clearDelay").val(node.clearDelay || 10);
-            $("#node-input-normalOff").prop("checked", node.normalOff === true);
-            $("#node-input-normalOn").prop("checked", node.normalOn !== false);
-            $("#node-input-runLostStatus").prop("checked", node.runLostStatus === true);
-            $("#node-input-noStatusOnRun").prop("checked", node.noStatusOnRun !== false);
-            $("#node-input-runLostStatusMessage").val(node.runLostStatusMessage || "Status lost during run");
-            $("#node-input-noStatusOnRunMessage").val(node.noStatusOnRunMessage || "No status received during run");
-
-            $.getJSON(`/call-status-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
-                const changes = [];
-                if (data.name) changes.push(`name: ${data.name}`);
-                if (data.statusTimeout !== undefined && !isNaN(data.statusTimeout) && data.statusTimeout !== parseFloat(node.statusTimeout || 30)) {
-                    changes.push(`statusTimeout: ${data.statusTimeout.toFixed(2)}`);
-                }
-                if (data.clearDelay !== undefined && !isNaN(data.clearDelay) && data.clearDelay !== parseFloat(node.clearDelay || 10)) {
-                    changes.push(`clearDelay: ${data.clearDelay.toFixed(2)}`);
-                }
-                if (data.normalOff !== (node.normalOff === true)) changes.push(`normalOff: ${data.normalOff}`);
-                if (data.normalOn !== (node.normalOn !== false)) changes.push(`normalOn: ${data.normalOn}`);
-                if (data.runLostStatus !== (node.runLostStatus === true)) changes.push(`runLostStatus: ${data.runLostStatus}`);
-                if (data.noStatusOnRun !== (node.noStatusOnRun !== false)) changes.push(`noStatusOnRun: ${data.noStatusOnRun}`);
-                if (data.runLostStatusMessage !== (node.runLostStatusMessage || "Status lost during run")) {
-                    changes.push(`runLostStatusMessage: ${data.runLostStatusMessage}`);
-                }
-                if (data.noStatusOnRunMessage !== (node.noStatusOnRunMessage || "No status received during run")) {
-                    changes.push(`noStatusOnRunMessage: ${data.noStatusOnRunMessage}`);
-                }
-                if (data.call !== false) changes.push(`call: ${data.call}`);
-                if (data.status !== false) changes.push(`status: ${data.status}`);
-                if (data.alarm !== false) changes.push(`alarm: ${data.alarm}`);
-                if (data.alarmMessage) changes.push(`alarmMessage: ${data.alarmMessage}`);
-                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown");
-            });
-        },
         oneditsave: function() {
             // Standard config properties are automatically saved by Node-RED
         },
         oneditvalidate: function() {
-            const statusTimeout = parseFloat($("#node-input-statusTimeout").val());
-            const clearDelay = parseFloat($("#node-input-clearDelay").val());
-            return !isNaN(statusTimeout) && statusTimeout > 0 && !isNaN(clearDelay) && clearDelay > 0;
+            return true;
         }
     });
 </script>
@@ -131,21 +85,23 @@ Issues calls to equipment with status and alarm diagnostics.
 : diagnostics (object) : `{ call; boolean, status; boolean, alarm; boolean, alarmMessage; string, timeout; boolean }`.
 
 ### Properties
-: name (string) : Display name in editor. Default; "" (shows "call status").
-: statusTimeout (number) : Time to wait for status response (seconds, > 0). Default; 30.
-: clearDelay (number) : Delay before clearing status and alarm after call ends (seconds, > 0). Default; 10.
-: normalOff (boolean) : Expected status when call is off. Default; `false`.
-: normalOn (boolean) : Expected status when call is on. Default; `true`.
-: runLostStatus (boolean) : Alarm if status doesn't match `normalOn` during call. Default; `false`.
-: noStatusOnRun (boolean) : Alarm if no status received during call. Default; `true`.
-: runLostStatusMessage (string) : Message for run lost status alarm. Default; "Status lost during run".
-: noStatusOnRunMessage (string) : Message for no status on run alarm. Default; "No status received during run".
+: name (string) : Display name in editor.
+: statusTimeout (number) : Time to wait for status response (seconds, > 0).
+: clearDelay (number) : Delay before clearing status and alarm after call ends (seconds, > 0).
+: normalOff (boolean) : Expected status when call is off.
+: normalOn (boolean) : Expected status when call is on.
+: runLostStatus (boolean) : Alarm if status doesn't match `normalOn` during call.
+: noStatusOnRun (boolean) : Alarm if no status received during call.
+: runLostStatusMessage (string) : Message for run lost status alarm.
+: noStatusOnRunMessage (string) : Message for no status on run alarm.
 
 ### Details
 Issues a call (`true`) to equipment via output 1 and expects a status response matching `normalOn` within `statusTimeout` seconds. 
 
 Clears status and alarm after `clearDelay` seconds when call ends (`false`), checking against `normalOff`. 
+
 Generates alarms for `runLostStatus` (status mismatch during call) or `noStatusOnRun` (no status within `statusTimeout`) with custom messages. 
+
 Ignores status inputs without an active call.
 
 ### Status

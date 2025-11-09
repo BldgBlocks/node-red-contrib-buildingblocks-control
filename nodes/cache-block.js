@@ -5,15 +5,15 @@ module.exports = function(RED) {
 
         // Initialize runtime state
         node.runtime = {
-            name: config.name || "",
-            operationMode: config.operationMode || "payload",
+            name: config.name,
+            operationMode: config.operationMode,
             cachedMessage: null
         };
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
 
-            // Guard against invalid message (Req 7)
+            // Guard against invalid message
             if (!msg) {
                 node.status({ fill: "red", shape: "ring", text: "invalid message" });
                 if (done) done();
@@ -98,25 +98,9 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            node.runtime.cachedMessage = null;
-            node.status({});
             done();
         });
     }
 
     RED.nodes.registerType("cache-block", CacheBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/cache-block-runtime/:id", RED.auth.needsPermission("cache-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "cache-block") {
-            res.json({
-                name: node.runtime.name,
-                operationMode: node.runtime.operationMode,
-                cachedValue: node.runtime.cachedMessage ? node.runtime.cachedMessage.payload : null
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

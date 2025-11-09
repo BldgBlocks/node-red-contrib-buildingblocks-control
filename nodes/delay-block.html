@@ -6,25 +6,25 @@
     </div>
     <div class="form-row">
         <label for="node-input-delayOn"><i class="fa fa-clock-o"></i> On Delay</label>
-        <input type="number" id="node-input-delayOn" placeholder="1000" min="0" step="any">
+        <input type="number" id="node-input-delayOn" placeholder="1000" min="0" step="1">
         <select id="node-input-delayOnUnits">
             <option value="milliseconds">Milliseconds</option>
             <option value="seconds">Seconds</option>
             <option value="minutes">Minutes</option>
         </select>
+        <input type="hidden" id="node-input-delayOnType">
+
     </div>
     <div class="form-row">
         <label for="node-input-delayOff"><i class="fa fa-clock-o"></i> Off Delay</label>
-        <input type="number" id="node-input-delayOff" placeholder="1000" min="0" step="any">
+        <input type="number" id="node-input-delayOff" placeholder="1000" min="0" step="1">
         <select id="node-input-delayOffUnits">
             <option value="milliseconds">Milliseconds</option>
             <option value="seconds">Seconds</option>
             <option value="minutes">Minutes</option>
         </select>
-    </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
+        <input type="hidden" id="node-input-delayOffType">
+
     </div>
 </script>
 
@@ -36,9 +36,11 @@
         defaults: {
             name: { value: "" },
             delayOn: { value: 1000, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
-            delayOnUnits: { value: "seconds" },
+            delayOnUnits: { value: "milliseconds" },
+            delayOnType: { value: "num" },
             delayOff: { value: 1000, required: true, validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) >= 0; } },
-            delayOffUnits: { value: "seconds" }
+            delayOffUnits: { value: "milliseconds" },
+            delayOffType: { value: "num" }
         },
         inputs: 1,
         outputs: 1,
@@ -50,23 +52,23 @@
             return this.name || "delay";
         },
         oneditprepare: function() {
-            const node = this;
-            $("#node-input-name").val(node.name || "");
-            $("#node-input-delayOn").val(node.delayOn || 1000);
-            $("#node-input-delayOnUnits").val(node.delayOnUnits || "milliseconds");
-            $("#node-input-delayOff").val(node.delayOff || 1000);
-            $("#node-input-delayOffUnits").val(node.delayOffUnits || "milliseconds");
+            try {
+                // Initialize typed inputs
+                $("#node-input-delayOn").typedInput({
+                    default: "num",
+                    types: ["num", "msg", "flow", "global"],
+                    typeField: "#node-input-delayOnType"
+                }).typedInput("type", node.delayOnType || "num").typedInput("value", node.delayOn);
 
-            $.getJSON(`/delay-block/${this.id}`, function(data) {
-                const changes = [];
-                if (data.name) changes.push(`name: ${data.name}`);
-                if (data.delayOn !== 1000) changes.push(`delayOn: ${data.delayOn} ms`);
-                if (data.delayOff !== 1000) changes.push(`delayOff: ${data.delayOff} ms`);
-                if (data.state) changes.push(`state: ${data.state}`);
-                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown");
-            });
+                $("#node-input-delayOff").typedInput({
+                    default: "num",
+                    types: ["num", "msg", "flow", "global"],
+                    typeField: "#node-input-delayOffType"
+                }).typedInput("type", node.delayOffType || "num").typedInput("value", node.delayOff);
+
+            } catch (err) {
+                console.error("Error in hysteresis-block oneditprepare:", err);
+            }
         },
         oneditvalidate: function() {
             return true;
@@ -93,10 +95,11 @@ if the input state persists. Forwards the input message with updated `msg.payloa
 Non-transition inputs (e.g., `true` when `state=true`) or state reversions cancel pending delays without output. 
 
 ### Status
-- Green (dot): Configuration (e.g., `reset`, `delayOn: 5000 ms`, `delayOff: 5000 ms`).
-- Blue (dot): Outputs (e.g., `in: true, out: true`, `in: false, out: false`).
-- Blue (ring): Awaiting or canceled (e.g., `awaiting true`, `canceled awaiting true`).
-- Red (ring): Errors (e.g., `missing payload`, `invalid payload`, `invalid delayOn`).
+- Green (dot): Configuration
+- Blue (dot): Output, no alarm
+- Red (dot): Output with alarm
+- Red (ring): Errors
+- Yellow (ring): Unknown context
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

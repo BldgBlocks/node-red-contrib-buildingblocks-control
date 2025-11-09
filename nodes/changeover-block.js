@@ -2,67 +2,31 @@ module.exports = function(RED) {
     function ChangeoverBlockNode(config) {
         RED.nodes.createNode(this, config);
         const node = this;
-        const utils = require("./utils");
-
+        
         // Initialize runtime state
         node.runtime = {
-            name: config.name || "",
-            algorithm: config.algorithm || "single",
-            setpoint: config.setpoint || "70",
-            setpointType: config.setpointType || "num",
-            deadband: parseFloat(config.deadband) || 2,
-            heatingSetpoint: config.heatingSetpoint || "68",
-            heatingSetpointType: config.heatingSetpointType || "num",
-            coolingSetpoint: config.coolingSetpoint || "74",
-            coolingSetpointType: config.coolingSetpointType || "num",
-            extent: parseFloat(config.extent) || 1,
-            swapTime: config.swapTime || "300",
-            swapTimeType: config.swapTimeType || "num",
-            minTempSetpoint: parseFloat(config.minTempSetpoint) || 55,
-            maxTempSetpoint: parseFloat(config.maxTempSetpoint) || 90,
-            operationMode: config.operationMode || "auto",
-            initWindow: parseFloat(config.initWindow) || 10
+            name: config.name,
+            algorithm: config.algorithm,
+            deadband: parseFloat(config.deadband),
+            extent: parseFloat(config.extent),
+            minTempSetpoint: parseFloat(config.minTempSetpoint),
+            maxTempSetpoint: parseFloat(config.maxTempSetpoint),
+            operationMode: config.operationMode,
+            initWindow: parseFloat(config.initWindow),
+            currentMode: persistedState?.currentMode || (config.operationMode === "cool" ? "cooling" : "heating"),
+            lastTemperature: persistedState?.lastTemperature || null,
+            lastModeChange: persistedState?.lastModeChange || 0
         };
 
-        // Initialize persistent state
-        const context = node.context();
-        node.runtime.currentMode = context.get("currentMode") || (node.runtime.operationMode === "cool" ? "cooling" : "heating");
-        node.runtime.lastTemperature = context.get("lastTemperature") || null;
-        node.runtime.lastModeChange = context.get("lastModeChange") || 0;
-
-        // Validate non-typedInput fields at startup
-        if (node.runtime.deadband <= 0) {
-            node.runtime.deadband = 2;
-            node.status({ fill: "red", shape: "ring", text: "invalid deadband, using 2" });
-        }
-        if (node.runtime.extent < 0) {
-            node.runtime.extent = 1;
-            node.status({ fill: "red", shape: "ring", text: "invalid extent, using 1" });
-        }
-        if (node.runtime.minTempSetpoint >= node.runtime.maxTempSetpoint) {
-            node.runtime.minTempSetpoint = 55;
-            node.runtime.maxTempSetpoint = 90;
-            node.status({ fill: "red", shape: "ring", text: "invalid setpoint range, using 55-90" });
-        }
-        if (parseFloat(node.runtime.swapTime) < 60) {
-            node.runtime.swapTime = "60";
-            node.status({ fill: "red", shape: "ring", text: "swapTime below 60s, using 60" });
-        }
-        if (node.runtime.initWindow < 0) {
-            node.runtime.initWindow = 10;
-            node.status({ fill: "red", shape: "ring", text: "invalid initWindow, using 10" });
-        }
+        node.runtime.currentMode = node.runtime.operationMode === "cool" ? "cooling" : "heating";
+        node.runtime.lastTemperature = null;
+        node.runtime.lastModeChange = 0;
 
         // Initialize state
         let initComplete = false;
         let conditionStartTime = null;
         let pendingMode = null;
         const initStartTime = Date.now() / 1000;
-
-        // Set initial mode based on cached temperature
-        if (node.runtime.lastTemperature !== null && node.runtime.initWindow > 0) {
-            evaluateInitialMode();
-        }
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
@@ -78,34 +42,35 @@ module.exports = function(RED) {
             let maxTemp = node.runtime.maxTempSetpoint;
 
             if (node.runtime.algorithm === "single") {
-                node.runtime.setpoint = utils.getTypedValue(
-                    node, node.runtime.setpointType, node.runtime.setpoint, msg,
-                    { min: minTemp, max: maxTemp, name: "setpoint" }, 70
-                ).toString();
-                node.runtime.setpointType = "num";
+                node.runtime.setpoint = RED.util.evaluateNodeProperty(
+                    config.setpoint, config.setpointType, node, msg
+                );
+                node.runtime.setpoint = parseFloat(node.runtime.setpoint);
             } else {
-                node.runtime.heatingSetpoint = utils.getTypedValue(
-                    node, node.runtime.heatingSetpointType, node.runtime.heatingSetpoint, msg,
-                    { min: minTemp, max: maxTemp, name: "heatingSetpoint" }, 68
-                ).toString();
-                node.runtime.heatingSetpointType = "num";
-                node.runtime.coolingSetpoint = utils.getTypedValue(
-                    node, node.runtime.coolingSetpointType, node.runtime.coolingSetpoint, msg,
-                    { min: minTemp, max: maxTemp, name: "coolingSetpoint" }, 74
-                ).toString();
-                node.runtime.coolingSetpointType = "num";
-                if (parseFloat(node.runtime.coolingSetpoint) < parseFloat(node.runtime.heatingSetpoint)) {
-                    node.runtime.coolingSetpoint = node.runtime.heatingSetpoint;
+                node.runtime.heatingSetpoint = RED.util.evaluateNodeProperty(
+                    config.heatingSetpoint, config.heatingSetpointType, node, msg
+                );
+                node.runtime.heatingSetpoint = parseFloat(node.runtime.heatingSetpoint);
+
+                node.runtime.coolingSetpoint = RED.util.evaluateNodeProperty(
+                    config.coolingSetpoint, config.coolingSetpointType, node, msg
+                );
+                node.runtime.coolingSetpoint = parseFloat(node.runtime.coolingSetpoint);
+
+                // Validate
+                if (node.runtime.coolingSetpoint < node.runtime.heatingSetpoint) {
+                    node.runtime.coolingSetpoint = node.runtime.heatingSetpoint + 4;
+                    node.status({ fill: "red", shape: "ring", text: "invalid setpoints, using fallback" });
                 }
             }
+            
+            node.runtime.swapTime = RED.util.evaluateNodeProperty(
+                config.swapTime, config.swapTimeType, node, msg
+            );
+            node.runtime.swapTime = parseFloat(node.runtime.swapTime);
 
-            node.runtime.swapTime = utils.getTypedValue(
-                node, node.runtime.swapTimeType, node.runtime.swapTime, msg,
-                { min: 60, name: "swapTime" }, 300
-            ).toString();
-            node.runtime.swapTimeType = "num";
-            if (parseFloat(node.runtime.swapTime) < 60) {
-                node.runtime.swapTime = "60";
+            if (node.runtime.swapTime < 60) {
+                node.runtime.swapTime = 60;
                 node.status({ fill: "red", shape: "ring", text: "swapTime below 60s, using 60" });
             }
 
@@ -171,7 +136,7 @@ module.exports = function(RED) {
                             if (done) done();
                             return;
                         }
-                        if (isNaN(value) || value < minTemp || value > maxTemp || value > parseFloat(node.runtime.coolingSetpoint)) {
+                        if (isNaN(value) || value < minTemp || value > maxTemp || value > node.runtime.coolingSetpoint) {
                             node.status({ fill: "red", shape: "ring", text: "invalid heatingSetpoint" });
                             if (done) done();
                             return;
@@ -186,7 +151,7 @@ module.exports = function(RED) {
                             if (done) done();
                             return;
                         }
-                        if (isNaN(value) || value < minTemp || value > maxTemp || value < parseFloat(node.runtime.heatingSetpoint)) {
+                        if (isNaN(value) || value < minTemp || value > maxTemp || value < node.runtime.heatingSetpoint) {
                             node.status({ fill: "red", shape: "ring", text: "invalid coolingSetpoint" });
                             if (done) done();
                             return;
@@ -216,8 +181,8 @@ module.exports = function(RED) {
                         break;
                     case "minTempSetpoint":
                         if (isNaN(value) || value >= node.runtime.maxTempSetpoint ||
-                            (node.runtime.algorithm === "single" && value > parseFloat(node.runtime.setpoint)) ||
-                            (node.runtime.algorithm === "split" && (value > parseFloat(node.runtime.heatingSetpoint) || value > parseFloat(node.runtime.coolingSetpoint)))) {
+                            (node.runtime.algorithm === "single" && value > node.runtime.setpoint) ||
+                            (node.runtime.algorithm === "split" && (value > node.runtime.heatingSetpoint || value > node.runtime.coolingSetpoint))) {
                             node.status({ fill: "red", shape: "ring", text: "invalid minTempSetpoint" });
                             if (done) done();
                             return;
@@ -227,8 +192,8 @@ module.exports = function(RED) {
                         break;
                     case "maxTempSetpoint":
                         if (isNaN(value) || value <= node.runtime.minTempSetpoint ||
-                            (node.runtime.algorithm === "single" && value < parseFloat(node.runtime.setpoint)) ||
-                            (node.runtime.algorithm === "split" && (value < parseFloat(node.runtime.heatingSetpoint) || value < parseFloat(node.runtime.coolingSetpoint)))) {
+                            (node.runtime.algorithm === "single" && value < node.runtime.setpoint) ||
+                            (node.runtime.algorithm === "split" && (value < node.runtime.heatingSetpoint || value < node.runtime.coolingSetpoint))) {
                             node.status({ fill: "red", shape: "ring", text: "invalid maxTempSetpoint" });
                             if (done) done();
                             return;
@@ -252,7 +217,11 @@ module.exports = function(RED) {
                 }
                 conditionStartTime = null;
                 pendingMode = null;
-                context.set("currentMode", node.runtime.currentMode);
+
+                savePersistentState({
+                    currentMode: node.runtime.currentMode
+                });
+
                 send(evaluateState() || buildOutputs());
                 if (done) done();
                 return;
@@ -270,9 +239,10 @@ module.exports = function(RED) {
                 if (done) done();
                 return;
             }
-
-            node.runtime.lastTemperature = input;
-            context.set("lastTemperature", node.runtime.lastTemperature);
+            
+            if (node.runtime.lastTemperature !== input) {
+                node.runtime.lastTemperature = input;
+            }
 
             const now = Date.now() / 1000;
             if (!initComplete && now - initStartTime >= node.runtime.initWindow) {
@@ -285,6 +255,8 @@ module.exports = function(RED) {
                 if (done) done();
                 return;
             }
+
+
 
             send(evaluateState() || buildOutputs());
             updateStatus();
@@ -303,11 +275,11 @@ module.exports = function(RED) {
             } else {
                 let heatingThreshold, coolingThreshold;
                 if (node.runtime.algorithm === "single") {
-                    heatingThreshold = parseFloat(node.runtime.setpoint) - node.runtime.deadband / 2 - node.runtime.extent;
-                    coolingThreshold = parseFloat(node.runtime.setpoint) + node.runtime.deadband / 2 + node.runtime.extent;
+                    heatingThreshold = node.runtime.setpoint - node.runtime.deadband / 2 - node.runtime.extent;
+                    coolingThreshold = node.runtime.setpoint + node.runtime.deadband / 2 + node.runtime.extent;
                 } else {
-                    heatingThreshold = parseFloat(node.runtime.heatingSetpoint) - node.runtime.extent;
-                    coolingThreshold = parseFloat(node.runtime.coolingSetpoint) + node.runtime.extent;
+                    heatingThreshold = node.runtime.heatingSetpoint - node.runtime.extent;
+                    coolingThreshold = node.runtime.coolingSetpoint + node.runtime.extent;
                 }
 
                 if (temp < heatingThreshold) {
@@ -319,8 +291,11 @@ module.exports = function(RED) {
 
             node.runtime.currentMode = newMode;
             node.runtime.lastModeChange = Date.now() / 1000;
-            context.set("currentMode", node.runtime.currentMode);
-            context.set("lastModeChange", node.runtime.lastModeChange);
+            
+            savePersistentState({
+                currentMode: node.runtime.currentMode,
+                lastModeChange: node.runtime.lastModeChange
+            });
         }
 
         function evaluateState() {
@@ -339,11 +314,11 @@ module.exports = function(RED) {
             } else if (node.runtime.lastTemperature !== null) {
                 let heatingThreshold, coolingThreshold;
                 if (node.runtime.algorithm === "single") {
-                    heatingThreshold = parseFloat(node.runtime.setpoint) - node.runtime.deadband / 2 - node.runtime.extent;
-                    coolingThreshold = parseFloat(node.runtime.setpoint) + node.runtime.deadband / 2 + node.runtime.extent;
+                    heatingThreshold = node.runtime.setpoint - node.runtime.deadband / 2 - node.runtime.extent;
+                    coolingThreshold = node.runtime.setpoint + node.runtime.deadband / 2 + node.runtime.extent;
                 } else {
-                    heatingThreshold = parseFloat(node.runtime.heatingSetpoint) - node.runtime.extent;
-                    coolingThreshold = parseFloat(node.runtime.coolingSetpoint) + node.runtime.extent;
+                    heatingThreshold = node.runtime.heatingSetpoint - node.runtime.extent;
+                    coolingThreshold = node.runtime.coolingSetpoint + node.runtime.extent;
                 }
 
                 let desiredMode = node.runtime.currentMode;
@@ -357,7 +332,7 @@ module.exports = function(RED) {
                     if (pendingMode !== desiredMode) {
                         conditionStartTime = now;
                         pendingMode = desiredMode;
-                    } else if (conditionStartTime && now - conditionStartTime >= parseFloat(node.runtime.swapTime)) {
+                    } else if (conditionStartTime && now - conditionStartTime >= node.runtime.swapTime) {
                         newMode = desiredMode;
                         conditionStartTime = null;
                         pendingMode = null;
@@ -371,9 +346,11 @@ module.exports = function(RED) {
             if (newMode !== node.runtime.currentMode) {
                 node.runtime.currentMode = newMode;
                 node.runtime.lastModeChange = now;
-                context.set("currentMode", node.runtime.currentMode);
-                context.set("lastModeChange", node.runtime.lastModeChange);
-                return buildOutputs();
+                
+                savePersistentState({
+                    currentMode: node.runtime.currentMode,
+                    lastModeChange: node.runtime.lastModeChange
+                });
             }
 
             return null;
@@ -383,11 +360,11 @@ module.exports = function(RED) {
             const isHeating = node.runtime.currentMode === "heating";
             let heatingSetpoint, coolingSetpoint;
             if (node.runtime.algorithm === "single") {
-                heatingSetpoint = parseFloat(node.runtime.setpoint) - node.runtime.deadband / 2;
-                coolingSetpoint = parseFloat(node.runtime.setpoint) + node.runtime.deadband / 2;
+                heatingSetpoint = node.runtime.setpoint - node.runtime.deadband / 2;
+                coolingSetpoint = node.runtime.setpoint + node.runtime.deadband / 2;
             } else {
-                heatingSetpoint = parseFloat(node.runtime.heatingSetpoint);
-                coolingSetpoint = parseFloat(node.runtime.coolingSetpoint);
+                heatingSetpoint = node.runtime.heatingSetpoint;
+                coolingSetpoint = node.runtime.coolingSetpoint;
             }
 
             return [
@@ -413,7 +390,7 @@ module.exports = function(RED) {
             } else {
                 let statusText = `in: temp=${node.runtime.lastTemperature !== null ? node.runtime.lastTemperature.toFixed(1) : "unknown"}, out: ${node.runtime.currentMode}`;
                 if (pendingMode && conditionStartTime) {
-                    const remaining = Math.max(0, parseFloat(node.runtime.swapTime) - (now - conditionStartTime));
+                    const remaining = Math.max(0, node.runtime.swapTime - (now - conditionStartTime));
                     statusText += `, pending: ${pendingMode} in ${remaining.toFixed(0)}s`;
                 }
                 node.status({
@@ -425,42 +402,9 @@ module.exports = function(RED) {
         }
 
         node.on("close", function(done) {
-            node.status({});
             done();
         });
     }
 
     RED.nodes.registerType("changeover-block", ChangeoverBlockNode);
-
-    RED.httpAdmin.get("/changeover-block-runtime/:id", RED.auth.needsPermission("changeover-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "changeover-block") {
-            const runtime = {
-                name: node.runtime.name,
-                algorithm: node.runtime.algorithm,
-                extent: node.runtime.extent,
-                swapTime: parseFloat(node.runtime.swapTime),
-                swapTimeType: node.runtime.swapTimeType,
-                minTempSetpoint: node.runtime.minTempSetpoint,
-                maxTempSetpoint: node.runtime.maxTempSetpoint,
-                operationMode: node.runtime.operationMode,
-                initWindow: node.runtime.initWindow,
-                currentMode: node.runtime.currentMode,
-                lastTemperature: node.runtime.lastTemperature
-            };
-            if (node.runtime.algorithm === "single") {
-                runtime.setpoint = parseFloat(node.runtime.setpoint);
-                runtime.setpointType = node.runtime.setpointType;
-                runtime.deadband = node.runtime.deadband;
-            } else {
-                runtime.heatingSetpoint = parseFloat(node.runtime.heatingSetpoint);
-                runtime.heatingSetpointType = node.runtime.heatingSetpointType;
-                runtime.coolingSetpoint = parseFloat(node.runtime.coolingSetpoint);
-                runtime.coolingSetpointType = node.runtime.coolingSetpointType;
-            }
-            res.json(runtime);
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

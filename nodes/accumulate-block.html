@@ -11,10 +11,6 @@
             <option value="flows">Accumulate Flows</option>
         </select>
     </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
-    </div>
 </script>
 
 <script type="text/javascript">
@@ -33,46 +29,17 @@
         paletteLabel: "accumulate",
         label: function() {
             if (this.name) return this.name;
-            return `${this.mode === "true" ? "true" : this.mode === "false" ? "false" : "flows"} accumulate`;
-        },
-        oneditprepare: function() {
-            const node = this;
-            $("#node-input-name").val(node.name || "");
-            $("#node-input-mode").val(node.mode || "true");
-
-            // Validate name input
-            $("#node-input-name").on("input", function() {
-                const val = $(this).val();
-                if (val && val.trim().length === 0) {
-                    $(this).addClass("input-error");
-                } else {
-                    $(this).removeClass("input-error");
-                }
-            });
-
-            // Fetch runtime changes
-            $.getJSON(`/accumulate-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
-                const changes = [];
-                if (data.name && data.name !== node.name) changes.push(`name: ${data.name}`);
-                if (data.mode && data.mode !== node.mode) changes.push(`mode: ${data.mode}`);
-                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown");
-            });
+            const modeLabels = {
+                "true": "true accumulate",
+                "false": "false accumulate", 
+                "flows": "flows accumulate"
+            };
+            return modeLabels[this.mode] || "accumulate";
         },
         oneditsave: function() {
             // Standard config properties are automatically saved
         },
         oneditvalidate: function() {
-            const name = $("#node-input-name").val();
-            const mode = $("#node-input-mode").val();
-            if (name && name.trim().length === 0) {
-                $("#node-input-name").addClass("input-error");
-                return false;
-            }
-            if (!["true", "false", "flows"].includes(mode)) {
-                return false;
-            }
             return true;
         }
     });
@@ -89,21 +56,20 @@ Counts consecutive inputs based on the selected mode, resetting on specific cond
 : payload (number) : Current count based on mode.
 
 ### Details
-Counts inputs according to the selected mode: 
+Counts inputs according to the selected mode 
 - `Accumulate True` counts consecutive `true` `msg.payload` inputs (reset on `false` or explicit reset)
 - `Accumulate False` counts consecutive `false` `msg.payload` inputs (reset on `true` or explicit reset)
 - `Accumulate Flows` counts all valid input messages (reset only on explicit reset). 
 
 Reset via `msg.context = "reset"` with `msg.payload = true` applies immediately;
 
-Used to track sustained events or message frequency.  
+Used to track sustained events or message frequency.
 
 ### Status
-- Green (dot): Configuration or reset (e.g., `mode: true, name: true accumulate`, `state reset`).
-- Blue (dot): Outputs when count changes (e.g., `out: 5`).
-- Blue (ring): Inputs when count unchanged (e.g., `out: 5`).
-- Red (ring): Errors (e.g., `missing message`, `missing payload`, `invalid input`).
-- Yellow (ring): Warnings (e.g., `unknown context`).
+- Green (dot): Configuration
+- Blue (dot): Output sent
+- Red (ring): Errors
+- Yellow (ring): Unknown context
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

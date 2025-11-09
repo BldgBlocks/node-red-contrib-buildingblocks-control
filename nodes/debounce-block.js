@@ -5,21 +5,8 @@ module.exports = function(RED) {
 
         // Initialize runtime for editor display
         node.runtime = {
-            period: parseFloat(config.period) || 1000,
             debounceCount: 0
         };
-
-        // Validate initial period
-        if (isNaN(node.runtime.period) || node.runtime.period <= 0) {
-            node.runtime.period = 1000;
-            node.status({ fill: "red", shape: "ring", text: "invalid period, using 1000" });
-        } else {
-            node.status({
-                fill: "green",
-                shape: "dot",
-                text: `period: ${node.runtime.period.toFixed(0)} ms`
-            });
-        }
 
         // Initialize state
         let debounceTimer = null;
@@ -27,6 +14,24 @@ module.exports = function(RED) {
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
+
+            // Evaluate all properties
+            try {
+                node.runtime.period = RED.util.evaluateNodeProperty(
+                    config.period, config.periodType, node, msg
+                );
+                node.runtime.period = parseFloat(node.runtime.period);
+
+                node.period = parseFloat(node.period);
+                if (isNaN(node.period) || node.period <= 0 || !isFinite(node.period)) {
+                    node.period = 1000;
+                    node.status({ fill: "yellow", shape: "ring", text: "invalid period, using 1000ms" });
+                }
+            } catch(err) {
+                node.status({ fill: "red", shape: "ring", text: "error evaluating properties" });
+                if (done) done(err);
+                return;
+            }
 
             // Guard against invalid msg
             if (!msg) {
@@ -122,36 +127,14 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            // Clear timer on redeployment
             if (debounceTimer) {
                 clearTimeout(debounceTimer);
                 debounceTimer = null;
             }
-
-            // Reset period and counter
-            node.runtime.period = parseFloat(config.period) || 1000;
-            if (isNaN(node.runtime.period) || node.runtime.period <= 0) {
-                node.runtime.period = 1000;
-            }
-            node.runtime.debounceCount = 0;
-
-            node.status({});
+            
             done();
         });
     }
 
     RED.nodes.registerType("debounce-block", DebounceBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/debounce-block-runtime/:id", RED.auth.needsPermission("debounce-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "debounce-block") {
-            res.json({
-                period: !isNaN(node.runtime.period) && node.runtime.period > 0 ? node.runtime.period : 1000,
-                debounceCount: node.runtime.debounceCount || 0
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

@@ -1,11 +1,9 @@
 <script type="text/html" data-template-name="debounce-block">
     <div class="form-row">
         <label for="node-input-period" title="Filter period in milliseconds (positive number, e.g., 1000)"><i class="fa fa-clock-o"></i> Filter Period (ms)</label>
-        <input type="number" id="node-input-period" placeholder="1000" min="0.001" step="any">
-    </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
+        <input type="text" id="node-input-period" placeholder="1000" min="0.001" step="any">
+        <input type="hidden" id="node-input-periodType">
+
     </div>
 </script>
 
@@ -14,11 +12,13 @@
         category: "control",
         color: "#301934",
         defaults: {
+            name: { value: "" },
             period: {
                 value: 1000,
                 required: true,
-                validate: function(v) { return !isNaN(parseFloat(v)) && parseFloat(v) > 0; }
-            }
+                validate: function() { return true; }
+            },
+            periodType: { value: "num" }
         },
         inputs: 1,
         outputs: 1,
@@ -29,48 +29,8 @@
         label: function() {
             return this.name || "debounce";
         },
-        oneditprepare: function() {
-            const node = this;
-            const id = this.id;
-
-            // Initialize inputs
-            $("#node-input-period").val(node.period || 1000);
-
-            // Validate period input
-            $("#node-input-period").on("input", function() {
-                const val = parseFloat($(this).val());
-                if (isNaN(val) || val <= 0) {
-                    $(this).addClass("input-error");
-                } else {
-                    $(this).removeClass("input-error");
-                }
-            });
-
-            // Fetch runtime changes
-            $.getJSON(`/debounce-block-runtime/${id}`, function(data) {
-                const runtime = data || {};
-                const changes = [];
-                if (runtime.period !== undefined && runtime.period !== Number(node.period)) {
-                    changes.push(`period: ${runtime.period.toFixed(0)} ms`);
-                }
-                if (runtime.debounceCount !== undefined && runtime.debounceCount !== 0) {
-                    changes.push(`debounceCount: ${runtime.debounceCount}`);
-                }
-                const displayText = changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None";
-                $("#node-runtime-changes").text(displayText);
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: None");
-            });
-        },
-        oneditsave: function() {
-            // Standard config properties are automatically saved
-        },
-        oneditvalidate: function() {
-            const period = parseFloat($("#node-input-period").val());
-            if (isNaN(period) || period <= 0) {
-                $("#node-input-period").addClass("input-error");
-                return false;
-            }
+        oneditvalidate: function () {
+            // typed-input's only validate at runtime. (unless simple RED.validators used in defaults)
             return true;
         }
     });
@@ -90,16 +50,17 @@ Debounces consecutive `true` payloads and passes `false` payloads immediately wi
 Filters consecutive `true` `msg.payload` inputs, outputting `true` after the filter period elapses without new `true` payloads. 
 
 Consecutive `true` payloads within the period reset the timer, delaying output. Outputs `false` `msg.payload` inputs immediately without debouncing. 
+
 Non-boolean payloads (e.g., strings, numbers) are ignored with an error status. 
 
-Tracks ignored `true` payloads (`debounceCount`), which increments for each `true` payload resetting an active timer, capped at 9999, resetting to 0 if exceeded or on redeployment. Runtime values (`period`, `debounceCount`) are shown in "Changed Runtime Values" if non-default (`period ≠ 1000 ms`, `debounceCount ≠ 0`).
+Tracks ignored `true` payloads, which increments for each `true` payload resetting an active timer, capped at 9999, resetting to 0 if exceeded or on redeployment. 
 
 ### Status
-- Green (dot): Configuration updates (e.g., `period: 1000 ms`).
-- Blue (dot): Outputs when state changes (e.g., `in: true, out: true, bounced: 5`, `in: false, out: false`).
-- Blue (ring): Outputs when state unchanged (e.g., `in: false, out: false` if previous was `false`).
-- Red (ring): Errors (e.g., `missing payload`, `invalid period`, `invalid payload`, `invalid message`).
-- Yellow (ring): Warnings (e.g., `unknown context`).
+- Green (dot): Configuration
+- Blue (dot): Output, no alarm
+- Red (dot): Output with alarm
+- Red (ring): Errors
+- Yellow (ring): Unknown context
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

@@ -5,7 +5,7 @@ module.exports = function(RED) {
 
         // Initialize runtime state
         node.runtime = {
-            name: config.name || "",
+            name: config.name,
             count: 0,
             prevState: false
         };
@@ -34,13 +34,10 @@ module.exports = function(RED) {
                         return;
                     }
                     if (msg.payload === true) {
-                        const prevCount = node.runtime.count;
                         node.runtime.count = 0;
                         node.runtime.prevState = false;
                         node.status({ fill: "green", shape: "dot", text: "state reset" });
-                        if (prevCount !== 0) {
-                            send({ payload: node.runtime.count });
-                        }
+                        send({ payload: node.runtime.count });
                     }
                     if (done) done();
                     return;
@@ -65,13 +62,19 @@ module.exports = function(RED) {
                 return;
             }
 
+            // Prevent integer overflow
+            if (node.runtime.count > Number.MAX_SAFE_INTEGER - 100000) {
+                node.runtime.count = 0;
+                node.status({ fill: "yellow", shape: "ring", text: "count overflow reset" });
+            }
+
             // Increment on false → true transition
             if (!node.runtime.prevState && inputValue === true) {
                 node.runtime.count++;
-                node.status({ fill: "blue", shape: "dot", text: `out: ${node.runtime.count}` });
+                node.status({ fill: "blue", shape: "dot", text: `count: ${node.runtime.count}` });
                 send({ payload: node.runtime.count });
             } else {
-                node.status({ fill: "blue", shape: "ring", text: `out: ${node.runtime.count}` });
+                node.status({ fill: "blue", shape: "ring", text: `count: ${node.runtime.count}` });
             }
 
             // Update prevState
@@ -81,25 +84,9 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            node.runtime.count = 0;
-            node.runtime.prevState = false;
-            node.status({});
             done();
         });
     }
 
     RED.nodes.registerType("count-block", CountBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/count-block-runtime/:id", RED.auth.needsPermission("count-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "count-block") {
-            res.json({
-                name: node.runtime.name,
-                count: node.runtime.count
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

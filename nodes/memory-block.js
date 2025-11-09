@@ -6,22 +6,20 @@ module.exports = function(RED) {
     function MemoryBlockNode(config) {
         RED.nodes.createNode(this, config);
         const node = this;
-        const utils = require("./utils");
 
         // Initialize runtime state
         node.runtime = {
-            name: config.name || "",
-            writePeriod: config.writePeriod || "60000",
-            writePeriodType: config.writePeriodType || "num",
-            transferProperty: config.transferProperty || "payload",
-            writeOnUpdate: config.writeOnUpdate === true, // New boolean config
+            name: config.name,
+            writePeriod: config.writePeriod,
+            writePeriodType: config.writePeriodType,
+            transferProperty: config.transferProperty,
+            writeOnUpdate: config.writeOnUpdate === true,
             storedMsg: null
         };
 
         // File path for persistent storage
         const filePath = path.join(RED.settings.userDir, `memory-${node.id}.json`);
 
-        // In-memory cache for delayed writes (used only when writeOnUpdate is false)
         let writeTimeout = null;
         let lastUpdateMsg = null;
 
@@ -83,15 +81,11 @@ module.exports = function(RED) {
                 return;
             }
 
-            // Resolve writePeriod
-            const writePeriod = utils.getTypedValue(node, msg, node.runtime.writePeriod, node.runtime.writePeriodType, { min: 0, name: "write period" }, 60000);
-            if (isNaN(writePeriod) || !isFinite(writePeriod) || writePeriod < 0) {
-                node.status({ fill: "red", shape: "ring", text: "invalid write period" });
-                node.runtime.writePeriod = "60000";
-            } else {
-                node.runtime.writePeriod = writePeriod.toString();
-            }
-            node.runtime.writePeriodType = "num";
+            // Resolve typed inputs
+            node.runtime.writePeriod = RED.util.evaluateNodeProperty(
+                config.writePeriod, config.writePeriodType, node, msg
+            );
+            node.runtime.writePeriod = parseFloat(node.runtime.writePeriod);
 
             // Initialize output array: [Output 1, Output 2]
             const output = [null, null];
@@ -245,21 +239,4 @@ module.exports = function(RED) {
     }
 
     RED.nodes.registerType("memory-block", MemoryBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/memory-block-runtime/:id", RED.auth.needsPermission("memory-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "memory-block") {
-            res.json({
-                name: node.runtime.name,
-                writePeriod: node.runtime.writePeriod,
-                writePeriodType: node.runtime.writePeriodType,
-                transferProperty: node.runtime.transferProperty,
-                writeOnUpdate: node.runtime.writeOnUpdate,
-                storedMsg: node.runtime.storedMsg
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

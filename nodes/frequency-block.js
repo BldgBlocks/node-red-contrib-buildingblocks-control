@@ -14,6 +14,8 @@ module.exports = function(RED) {
             ppd: 0
         };
 
+        // FEATURE: I want a runtime percentage per hour duty cycle
+
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
 
@@ -130,19 +132,4 @@ module.exports = function(RED) {
     }
 
     RED.nodes.registerType("frequency-block", FrequencyBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/frequency-block-runtime/:id", RED.auth.needsPermission("frequency-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "frequency-block") {
-            res.json({
-                name: node.runtime.name,
-                ppm: node.runtime.ppm,
-                pph: node.runtime.pph,
-                ppd: node.runtime.ppd
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

@@ -6,24 +6,17 @@ module.exports = function(RED) {
         
         // Initialize runtime state
         node.runtime = {
-            name: config.name || "divide",
-            slots: parseInt(config.slots) || 2,
-            inputs: Array(parseInt(config.slots) || 2).fill(1),
+            name: config.name,
+            slots: parseInt(config.slots),
+            inputs: Array(node.runtime.slots).fill(1).map(x => parseFloat(x)),
             lastResult: null
         };
 
-        // Validate initial config
-        if (isNaN(node.runtime.slots) || node.runtime.slots < 1) {
-            node.runtime.slots = 2;
-            node.runtime.inputs = Array(2).fill(1);
-            node.status({ fill: "red", shape: "ring", text: "invalid slots, using 2" });
-        } else {
-            node.status({
-                fill: "green",
-                shape: "dot",
-                text: `name: ${node.runtime.name}, slots: ${node.runtime.slots}`
-            });
-        }
+        node.status({
+            fill: "green",
+            shape: "dot",
+            text: `name: ${node.runtime.name}, slots: ${node.runtime.slots}`
+        });
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
@@ -93,6 +86,12 @@ module.exports = function(RED) {
                     if (done) done();
                     return;
                 }
+                // Handle division by very small numbers approaching zero
+                if (slotIndex > 0 && Math.abs(newValue) < 1e-10) {  // Near-zero check
+                    node.status({ fill: "red", shape: "ring", text: "divide by near-zero" });
+                    if (done) done();
+                    return;
+                }
                 node.runtime.inputs[slotIndex] = newValue;
                 // Calculate division
                 const result = node.runtime.inputs.reduce((acc, val, idx) => idx === 0 ? val : acc / val, 1);
@@ -116,14 +115,6 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            // Reset state on redeployment
-            node.runtime.slots = parseInt(config.slots) || 2;
-            if (isNaN(node.runtime.slots) || node.runtime.slots < 1) {
-                node.runtime.slots = 2;
-            }
-            node.runtime.inputs = Array(node.runtime.slots).fill(1);
-            node.runtime.lastResult = null;
-            node.status({});
             done();
         });
     }

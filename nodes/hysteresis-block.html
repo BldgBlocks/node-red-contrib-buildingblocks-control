@@ -61,25 +61,25 @@
                 default: "num",
                 types: ["num", "msg", "flow", "global"],
                 typeField: "#node-input-upperLimitType"
-            }).typedInput("type", node.upperLimitType || "num").typedInput("value", node.upperLimit || "50");
+            }).typedInput("type", node.upperLimitType || "num").typedInput("value", node.upperLimit);
 
             $("#node-input-lowerLimit").typedInput({
                 default: "num",
                 types: ["num", "msg", "flow", "global"],
                 typeField: "#node-input-lowerLimitType"
-            }).typedInput("type", node.lowerLimitType || "num").typedInput("value", node.lowerLimit || "30");
+            }).typedInput("type", node.lowerLimitType || "num").typedInput("value", node.lowerLimit);
 
             $("#node-input-upperLimitThreshold").typedInput({
                 default: "num",
                 types: ["num", "msg", "flow", "global"],
                 typeField: "#node-input-upperLimitThresholdType"
-            }).typedInput("type", node.upperLimitThresholdType || "num").typedInput("value", node.upperLimitThreshold || "2");
+            }).typedInput("type", node.upperLimitThresholdType || "num").typedInput("value", node.upperLimitThreshold);
 
             $("#node-input-lowerLimitThreshold").typedInput({
                 default: "num",
                 types: ["num", "msg", "flow", "global"],
                 typeField: "#node-input-lowerLimitThresholdType"
-            }).typedInput("type", node.lowerLimitThresholdType || "num").typedInput("value", node.lowerLimitThreshold || "2");
+            }).typedInput("type", node.lowerLimitThresholdType || "num").typedInput("value", node.lowerLimitThreshold);
 
         } catch (err) {
             console.error("Error in hysteresis-block oneditprepare:", err);
@@ -93,11 +93,15 @@
         const lower = $("#node-input-lowerLimit").typedInput("value");
         const upperType = $("#node-input-upperLimitType").typedInput("type");
         const lowerType = $("#node-input-lowerLimitType").typedInput("type");
-        // Only parse if type is 'num', otherwise assume valid string path
+        
+        if (upperType !== 'num' || lowerType !== 'num') {
+            return true; // Skip validation for dynamic expressions
+        }
+        
         const upperVal = upperType === 'num' ? parseFloat(upper) : 0;
         const lowerVal = lowerType === 'num' ? parseFloat(lower) : 0;
         return upperVal > lowerVal;
-    }   
+    }
 });
 </script>
 
@@ -136,7 +140,7 @@ Hysteresis controller with separate turn-on limits and turn-off differentials.
 - Blue (dot): State changed
 - Blue (ring): State unchanged
 - Red (ring): Error
-- Yellow: Warning
+- Yellow (ring): Warning
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

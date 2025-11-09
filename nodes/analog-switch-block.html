@@ -8,10 +8,6 @@
         <label for="node-input-slots" title="Number of input slots (integer >= 1)"><i class="fa fa-th-list"></i> Slots</label>
         <input type="number" id="node-input-slots" placeholder="2" min="1" step="1">
     </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
-    </div>
 </script>
 
 <!-- JavaScript Section: Registers the node and handles editor logic -->
@@ -32,38 +28,11 @@
         label: function() {
             return this.name ? `${this.name} (${this.slots})` : `analog switch (${this.slots})`;
         },
-        oneditprepare: function() {
-            const node = this;
-            $("#node-input-name").val(node.name || "");
-            $("#node-input-slots").val(node.slots || 2);
-
-            $.getJSON(`/analog-switch-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
-                const changes = [];
-                if (data.name) changes.push(`name: ${data.name}`);
-                if (data.slots !== undefined && Number.isInteger(data.slots) && data.slots !== Number(node.slots || 2)) {
-                    changes.push(`slots: ${data.slots}`);
-                }
-                if (data.switch !== undefined && Number.isInteger(data.switch) && data.switch !== 1) {
-                    changes.push(`switch: ${data.switch}`);
-                }
-                if (data.inputs && Array.isArray(data.inputs)) {
-                    data.inputs.forEach((value, i) => {
-                        if (value !== 0) {
-                            changes.push(`in${i + 1}: ${value.toFixed(2)}`);
-                        }
-                    });
-                }
-                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown");
-            });
-        },
         oneditsave: function() {
             // Standard config properties are automatically saved by Node-RED
         },
         oneditvalidate: function() {
-            const slots = parseInt($("#node-input-slots").val(), 10);
-            return !isNaN(slots) && slots >= 1;
+            return true;
         }
     });
 </script>
@@ -80,20 +49,21 @@ Selects one numeric input from multiple slots based on a switch value.
 : payload (number) : Selected input value based on switch setting.
 
 ### Properties
-: slots (integer) : Number of input slots (≥ 1). Default: 2.
+: slots (integer) : Number of input slots (≥ 1). Default 2.
 
 ### Details
 Selects one numeric input from multiple slots (`in1`, `in2`, etc.) based on a switch value (1 to slots) 
 set via `msg.context = "switch"` with integer `msg.payload`. Slots configurable via editor or `msg.context = "slots"` with 
 integer `msg.payload` (≥ 1). Inputs default to 0, updated via `msg.context = "inX"` with numeric `msg.payload`. 
 
-Outputs a new `{ payload: number }` when the active slot is updated, switch changes to a valid slot, or slots change affects the output.
+Outputs a new `msg.payload` when the active slot is updated, switch changes to a valid slot, or slots change affects the output.
 
 ### Status
-- Green (dot): Configuration (e.g., `slots: 3`, `switch: 1`, `in1: 5.50`).
-- Blue (dot): Output (e.g., `slots: 2, switch: 1, out: 5.50`).
-- Red (ring): Errors (e.g., `missing payload`, `invalid switch`).
-- Yellow (ring): Unknown context (e.g., `unknown context`).
+- Green (dot): Configuration update
+- Blue (dot): State changed
+- Blue (ring): State unchanged
+- Red (ring): Error
+- Yellow (ring): Warning
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

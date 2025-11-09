@@ -6,11 +6,7 @@
     </div>
     <div class="form-row">
         <label for="node-input-operationMode" title="Choose whether to output the full cloned message or only the payload"><i class="fa fa-cog"></i> Operation Mode</label>
-        <input type="text" id="node-input-operationMode">
-    </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
+        <input type="text" id="node-input-operationMode" placeholder="payload">
     </div>
 </script>
 
@@ -21,7 +17,7 @@
         color: "#301934",
         defaults: {
             name: { value: "" },
-            operationMode: { value: "payload", required: true, validate: function(v) { return v === "clone" || v === "payload"; } }
+            operationMode: { value: "payload", required: true }
         },
         inputs: 1,
         outputs: 1,
@@ -32,40 +28,11 @@
         label: function() {
             return this.name || "cache";
         },
-        oneditprepare: function() {
-            const node = this;
-            $("#node-input-name").val(node.name || "");
-
-            // Initialize typed input for operationMode (Req 9)
-            $("#node-input-operationMode").typedInput({
-                default: "str",
-                types: [{
-                    value: "str",
-                    options: [
-                        { value: "clone", label: "Clone Message" },
-                        { value: "payload", label: "Payload Only" }
-                    ]
-                }],
-                typeField: false
-            }).typedInput("value", node.operationMode || "clone");
-
-            $.getJSON(`/cache-block-runtime/${this.id}?t=${Date.now()}`, function(data) {
-                const changes = [];
-                if (data.name) changes.push(`name: ${data.name}`);
-                if (data.operationMode) changes.push(`operationMode: ${data.operationMode === "clone" ? "Clone Message" : "Payload Only"}`);
-                if (data.cachedValue !== null) {
-                    const displayValue = typeof data.cachedValue === "number" 
-                        ? data.cachedValue.toFixed(2) 
-                        : JSON.stringify(data.cachedValue).slice(0, 20);
-                    changes.push(`cached: ${displayValue}`);
-                }
-                $("#node-runtime-changes").text(changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None");
-            }).fail(function() {
-                $("#node-runtime-changes").text("Changed Values: Unknown");
-            });
-        },
         oneditsave: function() {
             // Standard config properties are automatically saved by Node-RED
+        },
+        oneditvalidate: function() {
+            return true;
         }
     });
 </script>
@@ -85,23 +52,22 @@ Unmatched values trigger an error.
 
 ### Properties
 : name (string) : Display name in editor. Default; "".  
-: operationMode (string) : Selects output behavior; "Clone Message" (full message) or "Payload Only" (just payload). Default; "Clone Message".
+: operationMode (string) : Selects output behavior; "Clone Message" (full message) or "Payload Only" (just payload).
 
 ### Details
 Stores the entire input message when `msg.context = "update"`.  
 
 Outputs either a full copy of the cached message (`operationMode = "Clone Message"`) 
-or a new message with only the cached `msg.payload` (`operationMode = "Payload Only"`) when `msg.context = "execute"`.  
+or a new message with only the cached `msg.payload`
 
 Clears the cache to `null` when `msg.context = "reset"` with `msg.payload = true`.  
 
-Runtime values (`name`, `operationMode`, `cachedValue`) are shown in "Changed Runtime Values" if different from defaults.
-
 ### Status
-- Green (dot): Update or reset   
-- Blue (dot): Execute   
-- Red (ring): Errors   
-- Yellow (ring): Unknown context 
+- Green (dot): Configuration update
+- Blue (dot): State changed
+- Blue (ring): State unchanged
+- Red (ring): Error
+- Yellow (ring): Warning
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)  

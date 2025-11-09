@@ -8,10 +8,6 @@
         <label for="node-input-nullToZero"><i class="fa fa-cog"></i> Null Mapping</label>
         <input type="checkbox" id="node-input-nullToZero" style="width: auto; margin-left: 10px;"> Map null to 0
     </div>
-    <div class="form-row">
-        <label><i class="fa fa-info-circle"></i> Changed Runtime Values</label>
-        <pre id="node-runtime-changes" style="color: #555; white-space: pre-wrap;">Changed Values: None</pre>
-    </div>
 </script>
 
 <!-- JavaScript Section -->
@@ -32,27 +28,6 @@
         label: function() {
             return this.name || "boolean to number";
         },
-        oneditprepare: function() {
-            const node = this;
-            const id = this.id;
-
-            // Initialize inputs
-            $("#node-input-name").val(node.name || "");
-            $("#node-input-nullToZero").prop("checked", node.nullToZero === true);
-
-            // Fetch runtime changes
-            $.getJSON(`/boolean-to-number-block-runtime/${id}`, function(data) {
-                const runtime = data || {};
-                const changes = [];
-                if (runtime.name) {
-                    changes.push(`name: ${runtime.name}`);
-                }
-                const displayText = changes.length > 0 ? `Changed Values:\n${changes.join("\n")}` : "Changed Values: None";
-                $("#node-runtime-changes").text(displayText);
-            }).fail(function(jqXHR, textStatus, errorThrown) {
-                $("#node-runtime-changes").text("Changed Values: Unknown (failed to fetch runtime)");
-            });
-        },
         oneditsave: function() {
             // Standard config properties are automatically saved
         },
@@ -70,18 +45,19 @@ Converts a boolean or null input payload to a numeric output.
 : payload (boolean | null) : Value to convert (`true`, `false`, `null`).
 
 ### Outputs
-: payload (number) : Converted value: `null` to `0` (if `nullToZero`) or `-1`, `false` to `0`, `true` to `1`.
+: payload (number) : Converted value `null` to `0` (if `nullToZero`) or `-1`, `false` to `0`, `true` to `1`.
 
 ### Details
-Converts `msg.payload` (boolean or null) to a number: `null` maps to `0` (if `nullToZero` is `true`) or `-1` (if `false`), `false` to `0`, `true` to `1`. 
+Converts `msg.payload` (boolean or null) to a number `null` maps to `0` (if `nullToZero` is `true`) or `-1` (if `false`), `false` to `0`, `true` to `1`. 
 
-Passthrough all other input message properties (e.g., `msg.topic`). 
-
-Configurable via editor (`name`, `nullToZero`), with changes requiring redeployment.
+Passthrough all other input message properties
 
 ### Status
-- Blue (dot): Outputs (e.g., `in: true, out: 1`, `in: null, out: 0`).
-- Red (ring): Errors (e.g., `missing payload`, `invalid payload`).
+- Green (dot): Configuration update
+- Blue (dot): State changed
+- Blue (ring): State unchanged
+- Red (ring): Error
+- Yellow (ring): Warning
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

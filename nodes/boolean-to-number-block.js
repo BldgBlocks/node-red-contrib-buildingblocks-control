@@ -5,17 +5,12 @@ module.exports = function(RED) {
 
         // Initialize runtime for editor display
         node.runtime = {
-            name: config.name || ""
+            name: config.name,
+            nullToZero: Boolean(config.nullToZero)
         };
-        node.nullToZero = config.nullToZero === true;
 
         node.on("input", function(msg, send, done) {
             send = send || function() { node.send.apply(node, arguments); };
-
-            // Ignore unmatched msg.context
-            if (msg.hasOwnProperty("context") && !["toggle", "switch", "inTrue", "inFalse"].includes(msg.context)) {
-                // Silently process payload if valid, no status change
-            }
 
             // Check for missing payload
             if (!msg.hasOwnProperty("payload")) {
@@ -25,9 +20,9 @@ module.exports = function(RED) {
             }
 
             // Validate and convert payload
-            const inputDisplay = msg.payload === null ? "null" : msg.payload;
+            const inputDisplay = msg.payload === null ? "null" : String(msg.payload);
             if (msg.payload === null) {
-                msg.payload = node.nullToZero ? 0 : -1;
+                msg.payload = node.runtime.nullToZero ? 0 : -1;
                 node.status({ fill: "blue", shape: "dot", text: `in: ${inputDisplay}, out: ${msg.payload}` });
                 send(msg);
             } else if (typeof msg.payload === "boolean") {
@@ -42,22 +37,9 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            node.status({});
             done();
         });
     }
 
     RED.nodes.registerType("boolean-to-number-block", BooleanToNumberBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/boolean-to-number-block-runtime/:id", RED.auth.needsPermission("boolean-to-number-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "boolean-to-number-block") {
-            res.json({
-                name: node.runtime.name
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

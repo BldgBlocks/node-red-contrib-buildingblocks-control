@@ -6,14 +6,14 @@ module.exports = function(RED) {
         // Initialize runtime state
         node.runtime = {
             name: config.name || "",
-            statusTimeout: parseFloat(config.statusTimeout) || 30,
-            clearDelay: parseFloat(config.clearDelay) || 10,
+            statusTimeout: parseFloat(config.statusTimeout),
+            clearDelay: parseFloat(config.clearDelay),
             normalOff: config.normalOff === true,
-            normalOn: config.normalOn !== false,
+            normalOn: config.normalOn === true,
             runLostStatus: config.runLostStatus === true,
-            noStatusOnRun: config.noStatusOnRun !== false,
-            runLostStatusMessage: config.runLostStatusMessage || "Status lost during run",
-            noStatusOnRunMessage: config.noStatusOnRunMessage || "No status received during run",
+            noStatusOnRun: config.noStatusOnRun === true,
+            runLostStatusMessage: config.runLostStatusMessage,
+            noStatusOnRunMessage: config.noStatusOnRunMessage,
             call: false,
             status: false,
             alarm: false,
@@ -266,60 +266,9 @@ module.exports = function(RED) {
         node.on("close", function(done) {
             if (node.runtime.statusTimer) clearTimeout(node.runtime.statusTimer);
             if (node.runtime.clearTimer) clearTimeout(node.runtime.clearTimer);
-
-            node.runtime = {
-                name: config.name || "",
-                statusTimeout: parseFloat(config.statusTimeout) || 30,
-                clearDelay: parseFloat(config.clearDelay) || 10,
-                normalOff: config.normalOff === true,
-                normalOn: config.normalOn !== false,
-                runLostStatus: config.runLostStatus === true,
-                noStatusOnRun: config.noStatusOnRun !== false,
-                runLostStatusMessage: config.runLostStatusMessage || "Status lost during run",
-                noStatusOnRunMessage: config.noStatusOnRunMessage || "No status received during run",
-                call: false,
-                status: false,
-                alarm: false,
-                alarmMessage: "",
-                statusTimer: null,
-                clearTimer: null
-            };
-
-            if (isNaN(node.runtime.statusTimeout) || node.runtime.statusTimeout <= 0) {
-                node.runtime.statusTimeout = 30;
-            }
-            if (isNaN(node.runtime.clearDelay) || node.runtime.clearDelay <= 0) {
-                node.runtime.clearDelay = 10;
-            }
-
-            node.status({});
             done();
         });
     }
 
     RED.nodes.registerType("call-status-block", CallStatusBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/call-status-block-runtime/:id", RED.auth.needsPermission("call-status-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "call-status-block") {
-            res.json({
-                name: node.runtime.name,
-                statusTimeout: node.runtime.statusTimeout,
-                clearDelay: node.runtime.clearDelay,
-                normalOff: node.runtime.normalOff,
-                normalOn: node.runtime.normalOn,
-                runLostStatus: node.runtime.runLostStatus,
-                noStatusOnRun: node.runtime.noStatusOnRun,
-                runLostStatusMessage: node.runtime.runLostStatusMessage,
-                noStatusOnRunMessage: node.runtime.noStatusOnRunMessage,
-                call: node.runtime.call,
-                status: node.runtime.status,
-                alarm: node.runtime.alarm,
-                alarmMessage: node.runtime.alarmMessage
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };
