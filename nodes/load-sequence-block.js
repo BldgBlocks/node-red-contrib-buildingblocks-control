@@ -7,11 +7,11 @@ module.exports = function(RED) {
         node.runtime = {
             name: config.name || "",
             enable: config.enable !== false,
-            hysteresis: parseFloat(config.hysteresis) || 0.5,
-            threshold1: parseFloat(config.threshold1) || 10.0,
-            threshold2: parseFloat(config.threshold2) || 20.0,
-            threshold3: parseFloat(config.threshold3) || 30.0,
-            threshold4: parseFloat(config.threshold4) || 40.0,
+            hysteresis: parseFloat(config.hysteresis),
+            threshold1: parseFloat(config.threshold1),
+            threshold2: parseFloat(config.threshold2),
+            threshold3: parseFloat(config.threshold3),
+            threshold4: parseFloat(config.threshold4),
             feedback1: config.feedback1 !== false,
             feedback2: config.feedback2 !== false,
             feedback3: config.feedback3 !== false,
@@ -264,67 +264,9 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            node.runtime.enable = config.enable !== false;
-            node.runtime.hysteresis = parseFloat(config.hysteresis) || 0.5;
-            node.runtime.threshold1 = parseFloat(config.threshold1) || 10.0;
-            node.runtime.threshold2 = parseFloat(config.threshold2) || 20.0;
-            node.runtime.threshold3 = parseFloat(config.threshold3) || 30.0;
-            node.runtime.threshold4 = parseFloat(config.threshold4) || 40.0;
-            node.runtime.feedback1 = config.feedback1 !== false;
-            node.runtime.feedback2 = config.feedback2 !== false;
-            node.runtime.feedback3 = config.feedback3 !== false;
-            node.runtime.feedback4 = config.feedback4 !== false;
-            node.runtime.out1 = false;
-            node.runtime.out2 = false;
-            node.runtime.out3 = false;
-            node.runtime.out4 = false;
-            node.runtime.dOn = 0;
-            node.runtime.lastInput = 0;
-            node.runtime.lastOutputs = [false, false, false, false];
-
-            if (isNaN(node.runtime.hysteresis) || node.runtime.hysteresis < 0) {
-                node.runtime.hysteresis = 0.5;
-            }
-            if (isNaN(node.runtime.threshold1) || isNaN(node.runtime.threshold2) || isNaN(node.runtime.threshold3) || isNaN(node.runtime.threshold4) ||
-                node.runtime.threshold1 < 0 || node.runtime.threshold2 < 0 || node.runtime.threshold3 < 0 || node.runtime.threshold4 < 0 ||
-                node.runtime.threshold1 >= node.runtime.threshold2 || node.runtime.threshold2 >= node.runtime.threshold3 || node.runtime.threshold3 >= node.runtime.threshold4) {
-                node.runtime.threshold1 = 10.0;
-                node.runtime.threshold2 = 20.0;
-                node.runtime.threshold3 = 30.0;
-                node.runtime.threshold4 = 40.0;
-            }
-
-            node.status({});
             done();
         });
     }
 
     RED.nodes.registerType("load-sequence-block", LoadSequenceBlockNode);
-
-    // Serve runtime state for editor
-    RED.httpAdmin.get("/load-sequence-block-runtime/:id", RED.auth.needsPermission("load-sequence-block.read"), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === "load-sequence-block") {
-            res.json({
-                name: node.runtime.name,
-                enable: node.runtime.enable,
-                hysteresis: node.runtime.hysteresis,
-                threshold1: node.runtime.threshold1,
-                threshold2: node.runtime.threshold2,
-                threshold3: node.runtime.threshold3,
-                threshold4: node.runtime.threshold4,
-                feedback1: node.runtime.feedback1,
-                feedback2: node.runtime.feedback2,
-                feedback3: node.runtime.feedback3,
-                feedback4: node.runtime.feedback4,
-                out1: node.runtime.out1,
-                out2: node.runtime.out2,
-                out3: node.runtime.out3,
-                out4: node.runtime.out4,
-                dOn: node.runtime.dOn
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
-        }
-    });
 };

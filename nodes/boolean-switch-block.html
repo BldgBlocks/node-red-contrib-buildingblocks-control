@@ -22,16 +22,6 @@
         paletteLabel: "boolean switch",
         label: function() {
             return this.name || "boolean switch";
-        },
-        oneditprepare: function() {
-            const node = this;
-            $("#node-input-name").val(node.name || "");
-        },
-        oneditsave: function() {
-            // Standard config properties are automatically saved
-        },
-        oneditvalidate: function() {
-            return true;
         }
     });
 </script>

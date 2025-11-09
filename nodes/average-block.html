@@ -63,32 +63,6 @@
             } catch (err) {
                 console.error("Error in hysteresis-block oneditprepare:", err);
             }
-        },
-        oneditvalidate: function() {
-            const node = this;
-            
-            try {
-                // Get current values from the form
-                const minValid = $("#node-input-minValid").typedInput("value");
-                const maxValid = $("#node-input-maxValid").typedInput("value");
-                
-                if (minType === "num" && maxType === "num") {
-                    const minNum = parseFloat(minValid);
-                    const maxNum = parseFloat(maxValid);
-                    
-                    if (isNaN(minNum) || isNaN(maxNum)) {
-                        return false;
-                    }
-                    
-                    if (minNum >= maxNum) {
-                        return false;
-                    }
-                }
-                return true;
-            } catch (err) {
-                node.error("Validation error:", err);
-                return false;
-            }
         }
     });
 </script>

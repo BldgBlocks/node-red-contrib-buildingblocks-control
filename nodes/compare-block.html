@@ -27,18 +27,6 @@
         paletteLabel: "compare",
         label: function() {
             return this.name || "compare";
-        },
-        oneditprepare: function() {
-            const node = this;
-            $("#node-input-name").val(node.name || "");
-            $("#node-input-setpoint").val(node.setpoint || 50);
-        },
-        oneditsave: function() {
-            // Standard config properties are automatically saved by Node-RED
-        },
-        oneditvalidate: function() {
-            // Simple validation is in defaults above
-            return true;
         }
     });
 </script>

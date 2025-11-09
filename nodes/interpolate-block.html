@@ -38,62 +38,6 @@
         paletteLabel: "interpolate",
         label: function() {
             return this.name ? `${this.name} (${this.points ? JSON.parse(this.points).length : 2})` : `interpolate (${this.points ? JSON.parse(this.points).length : 2})`;
-        },
-        oneditprepare: function() {
-            // Initialize inputs
-            $("#node-input-name").val(this.name || "interpolate");
-            $("#node-input-points").val(this.points || JSON.stringify([{ x: 0, y: 0 }, { x: 100, y: 100 }], null, 2));
-
-            // Validate name input
-            $("#node-input-name").on("input", function() {
-                const val = $(this).val();
-                if (!val || val.trim().length === 0) {
-                    $(this).addClass("input-error");
-                } else {
-                    $(this).removeClass("input-error");
-                }
-            });
-
-            // Validate points input
-            $("#node-input-points").on("input", function() {
-                const val = $(this).val();
-                try {
-                    const points = JSON.parse(val);
-                    if (Array.isArray(points) && points.length >= 2 &&
-                        points.every(p => typeof p.x === "number" && !isNaN(p.x) &&
-                                          typeof p.y === "number" && !isNaN(p.y))) {
-                        $(this).removeClass("input-error");
-                    } else {
-                        $(this).addClass("input-error");
-                    }
-                } catch (e) {
-                    $(this).addClass("input-error");
-                }
-            });
-        },
-        oneditsave: function() {
-            // Standard config properties are automatically saved
-        },
-        oneditvalidate: function() {
-            const name = $("#node-input-name").val();
-            const points = $("#node-input-points").val();
-            if (!name || name.trim().length === 0) {
-                $("#node-input-name").addClass("input-error");
-                return false;
-            }
-            try {
-                const parsedPoints = JSON.parse(points);
-                if (!Array.isArray(parsedPoints) || parsedPoints.length < 2 ||
-                    !parsedPoints.every(p => typeof p.x === "number" && !isNaN(p.x) &&
-                                             typeof p.y === "number" && !isNaN(p.y))) {
-                    $("#node-input-points").addClass("input-error");
-                    return false;
-                }
-            } catch (e) {
-                $("#node-input-points").addClass("input-error");
-                return false;
-            }
-            return true;
         }
     });
 </script>
@@ -109,20 +53,20 @@ Linearly interpolates a numeric input using a configurable points table.
 : payload (number) : Interpolated output value.
 
 ### Details
-Interpolates a numeric `msg.payload` using a table of `{x, y}` points (default: `[{x: 0, y: 0}, {x: 100, y: 100}]`). 
+Interpolates a numeric `msg.payload` using a table of `{x, y}` points. 
 
 Points are set via editor or `msg.context = "points"` with an array of ≥2 `{x, y}` objects (x and y as numbers). 
 
-Outputs `{ payload: number }` only when the interpolated value changes. 
+Outputs only when the interpolated value changes. 
 
 Input must be within the x-range of points; out-of-range inputs are rejected. 
 
 ### Status
-- Green (dot): Configuration updates (e.g., `name: interpolate, points: 2`, `points: 3`).
-- Blue (dot): Outputs when value changes (e.g., `in: 50.00, out: 50.00`).
-- Blue (ring): Outputs when value unchanged (e.g., `in: 50.00, out: 50.00`).
-- Red (ring): Errors (e.g., `invalid message`, `missing payload`, `invalid input`, `input out of range`).
-- Yellow (ring): Warnings (e.g., `unknown context`).
+- Green (dot): Configuration
+- Blue (dot): Output, no alarm
+- Red (dot): Output with alarm
+- Red (ring): Errors
+- Yellow (ring): Unknown context
 
 ### References
 - [Node-RED Documentation](https://nodered.org/docs/)

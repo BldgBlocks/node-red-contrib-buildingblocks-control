@@ -133,19 +133,6 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            // Reset state on redeployment
-            try {
-                node.runtime.points = config.points ? JSON.parse(config.points) : [{ x: 0, y: 0 }, { x: 100, y: 100 }];
-                if (!Array.isArray(node.runtime.points) || node.runtime.points.length < 2 ||
-                    !node.runtime.points.every(p => typeof p.x === "number" && !isNaN(p.x) &&
-                                                    typeof p.y === "number" && !isNaN(p.y))) {
-                    node.runtime.points = [{ x: 0, y: 0 }, { x: 100, y: 100 }];
-                }
-            } catch (e) {
-                node.runtime.points = [{ x: 0, y: 0 }, { x: 100, y: 100 }];
-            }
-            node.runtime.lastOutput = null;
-            node.status({});
             done();
         });
     }

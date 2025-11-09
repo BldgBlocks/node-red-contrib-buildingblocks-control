@@ -37,15 +37,7 @@ RED.nodes.registerType("contextual-label-block", {
         return this.removeLabel ? "remove context" : `🛈 ${this.contextPropertyName || "context"}`;
     },
     oneditprepare: function() {
-        $("#node-input-name").val(this.name || "");
-        $("#node-input-contextPropertyName").val(this.contextPropertyName || "in1");
         $("#node-input-removeLabel").prop("checked", this.removeLabel || false);
-    },
-    oneditsave: function() {
-        // Standard config properties are automatically saved
-    },
-    oneditvalidate: function() {
-        return true;
     }
 });
 </script>

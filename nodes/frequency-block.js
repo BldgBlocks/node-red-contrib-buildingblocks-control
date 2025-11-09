@@ -14,6 +14,12 @@ module.exports = function(RED) {
             ppd: 0
         };
 
+        node.status({ 
+            fill: "green", 
+            shape: "dot", 
+            text: "awaiting first pulse" 
+        });
+
         // FEATURE: I want a runtime percentage per hour duty cycle
 
         node.on("input", function(msg, send, done) {
@@ -87,14 +93,20 @@ module.exports = function(RED) {
                     // Compute period in minutes
                     let periodMs = now - node.runtime.lastEdge;
                     let periodMin = periodMs / 60000;
-                    if (periodMin !== 0) {
+                    if (periodMin > 0.001) {
+                        // Minimum 0.6ms period (1000 pulses/sec)
                         output.ppm = 1 / periodMin; // Pulses per minute
                         output.pph = output.ppm * 60; // Pulses per hour
                         output.ppd = output.ppm * 1440; // Pulses per day
-                        node.runtime.ppm = output.ppm;
-                        node.runtime.pph = output.pph;
-                        node.runtime.ppd = output.ppd;
+                    } else {
+                        // Handle ultra-high frequency
+                        output.ppm = 1000;
+                        output.pph = 60000;
+                        output.ppd = 1440000;
                     }
+                    node.runtime.ppm = output.ppm;
+                    node.runtime.pph = output.pph;
+                    node.runtime.ppd = output.ppd;
                 }
                 node.runtime.lastEdge = now;
                 node.runtime.completeCycle = true;
@@ -120,13 +132,6 @@ module.exports = function(RED) {
         });
 
         node.on("close", function(done) {
-            node.runtime.lastIn = false;
-            node.runtime.lastEdge = 0;
-            node.runtime.completeCycle = false;
-            node.runtime.ppm = 0;
-            node.runtime.pph = 0;
-            node.runtime.ppd = 0;
-            node.status({});
             done();
         });
     }

@@ -29,10 +29,6 @@
         paletteLabel: "divide",
         label: function() {
             return this.name ? `${this.name} (${this.slots})` : `divide (${this.slots})`;
-        },
-        oneditvalidate: function() {
-            // typed-input's only validate at runtime. (unless simple RED.validators used in defaults)
-            return true;
         }
     });
 </script>

@@ -153,7 +153,6 @@
                     } else {
                         $singleFields.hide();
                         $splitFields.show();
-                        validateSplitSetpoints();
                     }
                 }
 
@@ -175,71 +174,10 @@
                     const val = parseFloat($(this).val());
                     $(this).toggleClass("input-error", isNaN(val) || val < 0);
                 });
-
-                // Validate split setpoints
-                function validateSplitSetpoints() {
-                    if ($("#node-input-algorithm").val() !== "split") {
-                        $("#split-setpoint-warning").hide();
-                        $("#node-input-heatingSetpoint").removeClass("input-error");
-                        $("#node-input-coolingSetpoint").removeClass("input-error");
-                        return;
-                    }
-                    const heatingSetpoint = parseFloat($("#node-input-heatingSetpoint").typedInput("value"));
-                    const coolingSetpoint = parseFloat($("#node-input-coolingSetpoint").typedInput("value"));
-                    const isInvalid = isNaN(heatingSetpoint) || isNaN(coolingSetpoint) || coolingSetpoint <= heatingSetpoint;
-                    $("#node-input-heatingSetpoint").toggleClass("input-error", isInvalid);
-                    $("#node-input-coolingSetpoint").toggleClass("input-error", isInvalid);
-                    $("#split-setpoint-warning").toggle(isInvalid);
-                }
-
-                $("#node-input-heatingSetpoint").typedInput("on", "change", validateSplitSetpoints);
-                $("#node-input-coolingSetpoint").typedInput("on", "change", validateSplitSetpoints);
+                
             } catch (err) {
                 console.error("Error in changeover-block oneditprepare:", err);
             }
-        },
-        oneditvalidate: function() {
-            const deadband = parseFloat($("#node-input-deadband").val());
-            const extent = parseFloat($("#node-input-extent").val());
-            const swapTime = parseFloat($("#node-input-swapTime").typedInput("value"));
-            const minTemp = parseFloat($("#node-input-minTempSetpoint").typedInput("value"));
-            const maxTemp = parseFloat($("#node-input-maxTempSetpoint").typedInput("value"));
-            const initWindow = parseFloat($("#node-input-initWindow").val());
-
-            if ($("#node-input-algorithm").val() === "single") {
-                if (isNaN(deadband) || deadband <= 0) {
-                    $("#node-input-deadband").addClass("input-error");
-                    return false;
-                }
-            } else {
-                const heatingSetpoint = parseFloat($("#node-input-heatingSetpoint").typedInput("value"));
-                const coolingSetpoint = parseFloat($("#node-input-coolingSetpoint").typedInput("value"));
-                if (isNaN(heatingSetpoint) || isNaN(coolingSetpoint) || coolingSetpoint <= heatingSetpoint) {
-                    $("#node-input-heatingSetpoint").addClass("input-error");
-                    $("#node-input-coolingSetpoint").addClass("input-error");
-                    $("#split-setpoint-warning").show();
-                    return false;
-                }
-            }
-
-            if (isNaN(extent) || extent < 0) {
-                $("#node-input-extent").addClass("input-error");
-                return false;
-            }
-            if (isNaN(swapTime) || swapTime < 60) {
-                $("#node-input-swapTime").addClass("input-error");
-                return false;
-            }
-            if (isNaN(minTemp) || isNaN(maxTemp) || minTemp >= maxTemp) {
-                $("#node-input-minTempSetpoint").addClass("input-error");
-                $("#node-input-maxTempSetpoint").addClass("input-error");
-                return false;
-            }
-            if (isNaN(initWindow) || initWindow < 0) {
-                $("#node-input-initWindow").addClass("input-error");
-                return false;
-            }
-            return true;
         }
     });
 </script>
