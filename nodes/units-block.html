@@ -29,7 +29,38 @@
             return this.name || `units ${this.unit}`;
         },
         oneditprepare: function() {
-            const validUnits = ["°C", "°F", "K", "%RH", "Pa", "kPa", "bar", "mbar", "psi", "atm", "inH₂O", "mmH₂O", "CFM", "m³/h", "L/s", "V", "mV", "A", "mA", "W", "Ω", "%", "m", "cm", "mm", "km", "ft", "in", "kg", "g", "lb", "s", "min", "h", "L", "mL", "gal", "lx", "cd", "B", "T"];
+            // TODO: create a shared configuration file for conversion and units.
+            const validUnits = [
+                // Temperature
+                "°C", "°F", "K", "°R",
+                
+                // Humidity/Pressure
+                "%RH", "Pa", "kPa", "bar", "mbar", "psi", "atm", "inH₂O", "mmH₂O", "inHg",
+                
+                // Flow
+                "CFM", "m³/h", "L/s", 
+                
+                // Electrical
+                "V", "mV", "A", "mA", "W", "kW", "hp", "Ω",
+                
+                // General/Math
+                "%", 
+                
+                // Length
+                "m", "cm", "mm", "km", "ft", "in",
+                
+                // Mass
+                "kg", "g", "lb",
+                
+                // Time
+                "s", "min", "h",
+                
+                // Volume
+                "L", "mL", "gal",
+                
+                // Other
+                "lx", "cd", "B", "T"
+            ];
             $("#node-input-unit").typedInput({
                 default: "str",
                 types: [{
@@ -38,6 +69,7 @@
                         { value: "°C", label: "°C (Celsius)" },
                         { value: "°F", label: "°F (Fahrenheit)" },
                         { value: "K", label: "K (Kelvin)" },
+                        { value: "°R", label: "°R (Rankine)" },
                         { value: "%RH", label: "%RH (Relative Humidity)" },
                         { value: "%", label: "% (Percent)" },
                         { value: "Pa", label: "Pa (Pascal)" },
@@ -45,6 +77,7 @@
                         { value: "bar", label: "bar" },
                         { value: "mbar", label: "mbar (Millibar)" },
                         { value: "psi", label: "psi" },
+                        { value: "inHg", label: "inHg (Inches of Mercury)" },
                         { value: "atm", label: "atm (Atmosphere)" },
                         { value: "inH₂O", label: "inH₂O (Inches of Water)" },
                         { value: "mmH₂O", label: "mmH₂O (Millimeters of Water)" },
@@ -56,6 +89,8 @@
                         { value: "A", label: "A (Ampere)" },
                         { value: "mA", label: "mA (Milliampere)" },
                         { value: "W", label: "W (Watt)" },
+                        { value: "kW", label: "kW (Kilowatt)" },
+                        { value: "hp", label: "hp (Horsepower)" },
                         { value: "Ω", label: "Ω (Ohm)" },
                         { value: "m", label: "m (Meter)" },
                         { value: "cm", label: "cm (Centimeter)" },

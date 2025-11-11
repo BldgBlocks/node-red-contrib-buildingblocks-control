@@ -6,9 +6,9 @@ module.exports = function(RED) {
         
         // Initialize runtime state
         node.runtime = {
-            name: config.name || "subtract",
-            slots: parseInt(config.slots) || 2,
-            inputs: Array(parseInt(config.slots) || 2).fill(0),
+            name: config.name,
+            slots: parseInt(config.slots),
+            inputs: Array(parseInt(config.slots)).fill(0),
             lastResult: null
         };
 
