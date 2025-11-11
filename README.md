@@ -1,4 +1,4 @@
-# node-red-contrib-buildingblocks-control
+# @bldgblocks/node-red-contrib-control
 Sedona-inspired control nodes for stateful logic.
 
 This is a rather large node collection. Contributions are appreciated.
