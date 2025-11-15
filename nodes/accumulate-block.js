@@ -32,7 +32,7 @@ module.exports = function(RED) {
             // Handle reset command with intentional payload requirement
             if (msg.context === "reset") {
                 if (msg.payload === true) {
-                    count = 0;
+                    node.runtime.count = 0;
                     updateStatus();
                     if (done) done();
                     return;
