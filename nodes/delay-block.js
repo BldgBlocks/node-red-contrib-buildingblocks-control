@@ -4,7 +4,7 @@ module.exports = function(RED) {
         const node = this;
 
         node.runtime = {
-            name: config.name || "",
+            name: config.name,
             state: false,
             desired: false
         };
@@ -21,9 +21,13 @@ module.exports = function(RED) {
             );
             node.runtime.delayOff = (parseFloat(node.runtime.delayOff)) * (config.delayOffUnits === "seconds" ? 1000 : config.delayOffUnits === "minutes" ? 60000 : 1);
 
-            node.period = parseFloat(node.period);
-            if (isNaN(node.period) || node.period <= 0 || !isFinite(node.period)) {
-                node.period = 1000;
+            if (isNaN(node.runtime.delayOn) || node.runtime.delayOn <= 0 || !isFinite(node.runtime.delayOn)) {
+                node.runtime.delayOn = 1000;
+                node.status({ fill: "yellow", shape: "ring", text: "invalid period, using 1000ms" });
+            }
+
+            if (isNaN(node.runtime.delayOff) || node.runtime.delayOff <= 0 || !isFinite(node.runtime.delayOff)) {
+                node.runtime.delayOff = 1000;
                 node.status({ fill: "yellow", shape: "ring", text: "invalid period, using 1000ms" });
             }
         } catch(err) {
